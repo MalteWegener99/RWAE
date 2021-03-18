@@ -144,7 +144,7 @@ chord_distribution = 3*(1-r_R)+1 # meters
 twist_distribution = -14*(1-r_R)+pitch # degrees
 
 
-def solver_wrapper(TSR, yaw):
+def solverrrrrrrrr_wrapper(TSR, yaw):
     # define flow conditions
     Uinf = 15 # unperturbed wind speed in m/s
     # TSR = 8 # tip speed ratio
