@@ -176,9 +176,9 @@ def solverrrrrrrrr_wrapper(TSR, yaw):
     dr = (r_R[1:]-r_R[:-1])*Radius
     CT = np.sum(dr*results[:,3]*NBlades/(0.5*Uinf**2*np.pi*Radius**2))
     CP = np.sum(dr*results[:,4]*results[:,2]*NBlades*Radius*Omega/(0.5*Uinf**3*np.pi*Radius**2))
-    print(CP)
+    print(CT)
 
-    return CT, CP
+    return results[:,2], results[:,0]
 
 # print("CT is ", CT)
 # print("CP is ", CP)
@@ -220,11 +220,6 @@ def solverrrrrrrrr_wrapper(TSR, yaw):
 # plt.show()
 
 n = 5
-yaw = np.linspace(0,30,25)
-cp = np.zeros(yaw.shape)
-for i in range(yaw.shape[0]):
-    cp[i] = solver_wrapper(10,yaw[i])[1]
-
-plt.plot(yaw, cp/np.max(cp))
+plt.plot(*solverrrrrrrrr_wrapper(8,0))
 plt.grid()
 plt.show()

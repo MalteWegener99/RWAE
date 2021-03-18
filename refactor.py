@@ -10,7 +10,7 @@ def calc_a(CT,yaw,xi):
     a[CT>=CT2] = (1 + (CT-CT1)/(4*(np.sqrt(CT1)-1)))[CT>=CT2]
     a[CT<CT2] = (B/2/K-np.sqrt((B/2/K)**2-1/4/K*CT))[CT<CT2]
     # a[CT<CT2] = (1 + (CT-CT1)/(4*np.sqrt(CT1)-4))[CT<CT2]
-    # a = (B/2/K-np.sqrt((B/2/K)**2-1/4/K*CT))
+    a = 0.5*(1-np.sqrt(1-CT))
     return a
 
 def Prandtlf(r, TSR, NBlades, a):
@@ -49,11 +49,12 @@ def forces(u_a,u_t,chord, twist, arf, uinf, nb, dr, dpsi):
 def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     yaw = np.radians(yaw)
     # initiatlize variables
+    N2 = N*2
     r = np.linspace(0.2,1,N)*R
-    psi = np.linspace(0,360,N*2)/180*np.pi
+    psi = np.linspace(0,360,N2)/180*np.pi
     r,psi = np.meshgrid(r,psi)
     dr = (0.8)/N*R
-    dpsi = 360/N/180*np.pi
+    dpsi = 360/N2/180*np.pi
     Area = r*dr*dpsi
     print(np.sum(Area))
     arf = Airfoil('DU95.csv')
@@ -74,7 +75,7 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
         u_t = (1+al)*Omega*r-Uinf*np.sin(yaw)*np.cos(psi)
         fn,ft = forces(u_a, u_t, chord,twist,arf,Uinf,NB,dr,dpsi)
         load3Daxial =fn*dr*NB*dpsi
-        CT = load3Daxial/(0.5*r*dr*2*np.pi*Uinf**2)
+        CT = load3Daxial/(0.5*r*dr*Uinf**2)
         an = calc_a(CT,yaw,chi)
         ap = ft*NB/(2*np.pi*Uinf*(1-a)*Uinf*tsr*2*(r)**2)
         an = an*Prandtl
@@ -92,7 +93,8 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
         
     else:
         print("Not converged")
-    return [a,al,r,psi,Prandtl]
+    return [a,al,r,psi,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
+    np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*(np.cos(yaw)-a)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi)]
 
 
 def solve_wrapper(TSR, yaw):
@@ -117,9 +119,10 @@ def solve_wrapper(TSR, yaw):
     return result
 
 
-a = solve_wrapper(10,30)
+a = solve_wrapper(12,15)
+print(a[-1])
 fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
-im = ax.contourf(a[3], a[2], a[0],50)
+im = ax.contourf(a[3], a[2], a[0],100)
 ax.set_rmin(0)
 plt.colorbar(im)
 plt.show()
