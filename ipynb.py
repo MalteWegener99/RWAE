@@ -2,25 +2,6 @@
 import matplotlib.pyplot as plt
 import numpy as np  
 
-
-
-
-
-
-def CTfunction(a, glauert = False):
-    """
-    This function calculates the thrust coefficient as a function of induction factor 'a'
-    'glauert' defines if the Glauert correction for heavily loaded rotors should be used; default value is false
-    """
-    CT = np.zeros(np.shape(a))
-    CT = 4*a*(1-a)  
-    if glauert:
-        CT1=1.816;
-        a1=1-np.sqrt(CT1)/2;
-        CT[a>a1] = CT1-4*(np.sqrt(CT1)-1)*(1-a[a>a1])
-    
-    return CT
-  
     
 def ainduction(CT, xi, yaw):
     """
@@ -35,9 +16,6 @@ def ainduction(CT, xi, yaw):
     a[CT>=CT2] = 1 + (CT[CT>=CT2]-CT1)/(4*(np.sqrt(CT1)-1))
     a[CT<CT2] = B/2/K-np.sqrt((B/2/K)**2-1/4/K*CT[CT<CT2])
     return a
-
-
-
 
 
 def PrandtlTipRootCorrection(r_R, rootradius_R, tipradius_R, TSR, NBlades, axial_induction):
@@ -99,7 +77,7 @@ def solveStreamtube(Uinf, r1_R, r2_R, rootradius_R, tipradius_R , Omega, Radius,
     Area = np.pi*((r2_R*Radius)**2-(r1_R*Radius)**2) #  area streamtube
     r_R = (r1_R+r2_R)/2 # centroide
     # initiatlize variables
-    a = 0.0 # axial induction
+    a = 0.3# axial induction
     aline = 0.0 # tangential induction factor
     
     Niterations = 100
@@ -109,7 +87,7 @@ def solveStreamtube(Uinf, r1_R, r2_R, rootradius_R, tipradius_R , Omega, Radius,
         # ///////////////////////////////////////////////////////////////////////
         # // this is the block "Calculate velocity and loads at blade element"
         # ///////////////////////////////////////////////////////////////////////
-        Urotor = Uinf*(1*np.cos(yaw)-a) # axial velocity at rotor
+        Urotor = Uinf*(1-a) *np.cos(yaw)# axial velocity at rotor
         Utan = (1+aline)*Omega*r_R*Radius # tangential velocity at rotor
         # calculate loads in blade segment in 2D (N/m)
         fnorm, ftan, gamma = loadBladeElement(Urotor, Utan, r_R,chord, twist, polar_alpha, polar_cl, polar_cd)
@@ -124,17 +102,17 @@ def solveStreamtube(Uinf, r1_R, r2_R, rootradius_R, tipradius_R , Omega, Radius,
         # // this is the block "Calculate new estimate of axial and azimuthal induction"
         # ///////////////////////////////////////////////////////////////////////
         # // calculate thrust coefficient at the streamtube 
+        # correct new axial induction with Prandtl's correction
         xi = (0.6*a+1)*yaw
         CT = load3Daxial/(0.5*Area*Uinf**2)
         
         # calculate new axial induction, accounting for Glauert's correction
         anew =  ainduction(CT, xi, yaw)
-        
-        # correct new axial induction with Prandtl's correction
         Prandtl, Prandtltip, Prandtlroot = PrandtlTipRootCorrection(r_R, rootradius_R, tipradius_R, Omega*Radius/Uinf, NBlades, anew);
         if (Prandtl < 0.0001): 
             Prandtl = 0.0001 # avoid divide by zero
-        anew = anew * Prandtl # correct estimate of axial induction
+        
+        anew = anew *Prandtl# correct estimate of axial induction
         a = 0.75*a+0.25*anew # for improving convergence, weigh current and previous iteration of axial induction
 
         # calculate aximuthal induction
@@ -161,14 +139,14 @@ r_R = np.arange(0.2, 1+delta_r_R/2, delta_r_R)
 
 
 # blade shape
-pitch = -2 # degrees
+pitch = 2 # degrees
 chord_distribution = 3*(1-r_R)+1 # meters
 twist_distribution = -14*(1-r_R)+pitch # degrees
 
 
 def solver_wrapper(TSR, yaw):
     # define flow conditions
-    Uinf = 10 # unperturbed wind speed in m/s
+    Uinf = 15 # unperturbed wind speed in m/s
     # TSR = 8 # tip speed ratio
     Radius = 50
     Omega = Uinf*TSR/Radius
@@ -194,11 +172,11 @@ def solver_wrapper(TSR, yaw):
 
     # plot results
 
-
     areas = (r_R[1:]**2-r_R[:-1]**2)*np.pi*Radius**2
     dr = (r_R[1:]-r_R[:-1])*Radius
     CT = np.sum(dr*results[:,3]*NBlades/(0.5*Uinf**2*np.pi*Radius**2))
     CP = np.sum(dr*results[:,4]*results[:,2]*NBlades*Radius*Omega/(0.5*Uinf**3*np.pi*Radius**2))
+    print(CP)
 
     return CT, CP
 
@@ -241,15 +219,12 @@ def solver_wrapper(TSR, yaw):
 # plt.legend()
 # plt.show()
 
-n = 20
-tsr, yy = np.meshgrid(np.linspace(5,10,n), np.linspace(0,30,n))
-zz = np.zeros(tsr.shape)
-k = 0
-for i in range(tsr.shape[0]):
-    for j in range(tsr.shape[1]):
-        zz[i,j] = solver_wrapper(tsr[i,j], yy[i,j])[1]
-        k+=1
-        print("{:2.2f}".format(100*k/n**2))
+n = 5
+yaw = np.linspace(0,30,25)
+cp = np.zeros(yaw.shape)
+for i in range(yaw.shape[0]):
+    cp[i] = solver_wrapper(10,yaw[i])[1]
 
-plt.contour(tsr,yy,zz,40)
+plt.plot(yaw, cp/np.max(cp))
+plt.grid()
 plt.show()
