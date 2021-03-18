@@ -95,6 +95,7 @@ def solve(Uinf, rootradius_R, tipradius_R , Omega, Radius, NBlades, chord_d, twi
         # correct new axial induction with Prandtl's correction
         xi = (0.6*a+1)*yaw
         CT = load3Daxial/(0.5*Area*Uinf**2)
+        CP = ftan*NBlades*dr*r*Radius*Omega/(0.5*Uinf**3*np.pi*Radius**2)
         
         # calculate new axial induction, accounting for Glauert's correction
         anew =  calc_a(CT, xi, yaw)
@@ -119,7 +120,7 @@ def solve(Uinf, rootradius_R, tipradius_R , Omega, Radius, NBlades, chord_d, twi
         
     else:
         print("Not converged")
-    return [a,aline,r,CT,np.trapz(CT,r),np.trapz(CT,r)*Uinf]
+    return [a,aline,r,CT,np.trapz(CT,dx=dr),np.trapz(CP,dx=dr)]
 
 
 def solve_wrapper(TSR, yaw):
@@ -139,7 +140,7 @@ def solve_wrapper(TSR, yaw):
 
     result = solve(Uinf, RootLocation_R, TipLocation_R , Omega, Radius, NBlades, chord_distribution, twist_distribution, yaw, 50)
     print(result[-1])
-    plt.plot(result[0])
+    plt.plot(result[3])
     plt.show()
 
 solve_wrapper(8,0)
