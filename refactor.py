@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import cmocean.cm as cms
+color = cms.haline
 
 def calc_a(CT,yaw,xi):
     B = np.cos(yaw)+np.sin(yaw)*np.tan(xi/2)
@@ -10,7 +12,7 @@ def calc_a(CT,yaw,xi):
     a[CT>=CT2] = (1 + (CT-CT1)/(4*(np.sqrt(CT1)-1)))[CT>=CT2]
     a[CT<CT2] = (B/2/K-np.sqrt((B/2/K)**2-1/4/K*CT))[CT<CT2]
     # a[CT<CT2] = (1 + (CT-CT1)/(4*np.sqrt(CT1)-4))[CT<CT2]
-    a = 0.5*(1-np.sqrt(1-CT))
+    # a = 0.5*(1-np.sqrt(1-CT))
     return a
 
 def Prandtlf(r, TSR, NBlades, a):
@@ -50,13 +52,13 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     yaw = np.radians(yaw)
     # initiatlize variables
     N2 = N*2
-    r = np.linspace(0.2,1,N)*R
-    psi = np.linspace(0,360,N2)/180*np.pi
-    r,psi = np.meshgrid(r,psi)
     dr = (0.8)/N*R
     dpsi = 360/N2/180*np.pi
+    # ASk me for Ligma
+    r = (np.linspace(0.2*R,R,N)+dr/2)[0:-1]
+    psi = np.linspace(0,360,N2)/180*np.pi
+    r,psi = np.meshgrid(r,psi)
     Area = r*dr*dpsi
-    print(np.sum(Area))
     arf = Airfoil('DU95.csv')
     chord = chord_d(r/R)
     twist = twist_d(r/R)
@@ -64,28 +66,29 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     al = np.full_like(r, 0) # tangential induction factor
     Omega = Uinf*tsr/R
     
-    Niterations = 1000
+    Niterations = 10000
     Erroriterations =0.00001 # error limit for iteration rpocess, in absolute value of induction
+    u_a = 0
     
     for i in range(Niterations):
         Prandtl = Prandtlf(r/R,tsr,NB,a)
         chi = (0.6*a+1)*yaw
         k = 2*np.tan(0.5*chi)
-        u_a = (np.cos(yaw)+a*(1+k*r/R*np.sin(psi)))*Uinf
+        u_a = (np.cos(yaw)-a*(1+k*r/R*np.sin(psi)))*Uinf
         u_t = (1+al)*Omega*r-Uinf*np.sin(yaw)*np.cos(psi)
         fn,ft = forces(u_a, u_t, chord,twist,arf,Uinf,NB,dr,dpsi)
-        load3Daxial =fn*dr*NB*dpsi
-        CT = load3Daxial/(0.5*r*dr*Uinf**2)
+        load3Daxial =fn*dr*NB*dpsi*r
+        CT = load3Daxial/(0.5*r*dr*Uinf**2*2*np.pi)
         an = calc_a(CT,yaw,chi)
         ap = ft*NB/(2*np.pi*Uinf*(1-a)*Uinf*tsr*2*(r)**2)
-        an = an*Prandtl
-        ap = ap*Prandtl
+        #Ligma Balls
+        an = an/Prandtl
+        ap = ap/Prandtl
 
         
         #// test convergence of solution, by checking convergence of axial induction
         if (np.all(np.abs(a-an) < Erroriterations)): 
-            print("iterations")
-            print(i)
+            print(i,"iterations")
             break
         
         a = an/4+3*a/4
@@ -93,7 +96,7 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
         
     else:
         print("Not converged")
-    return [a,al,r,psi,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
+    return [a,al,r,psi,u_a,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
     np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*(np.cos(yaw)-a)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi)]
 
 
@@ -113,17 +116,22 @@ def solve_wrapper(TSR, yaw):
     RootLocation_R =  0.2
 
     result = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,yaw,100)
-    print(TSR, yaw)
-    # plt.plot(result[3])
-    # plt.show()
     return result
 
 
-a = solve_wrapper(12,15)
+a = solve_wrapper(8,0)
 print(a[-1])
 fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
-im = ax.contourf(a[3], a[2], a[0],100)
+im = ax.contourf(a[3], a[2], a[0],100,cmap=color)
 ax.set_rmin(0)
 plt.colorbar(im)
 plt.show()
 print("Done")
+
+# yaw = np.linspace(0,30)
+# cp = np.zeros_like(yaw)
+# for i in range(yaw.shape[0]):
+#     cp[i] = solve_wrapper(8,yaw[i])
+
+# plt.plot(yaw,cp/np.max(cp))
+# plt.show()

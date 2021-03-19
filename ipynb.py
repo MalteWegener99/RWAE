@@ -112,12 +112,12 @@ def solveStreamtube(Uinf, r1_R, r2_R, rootradius_R, tipradius_R , Omega, Radius,
         if (Prandtl < 0.0001): 
             Prandtl = 0.0001 # avoid divide by zero
         
-        anew = anew *Prandtl# correct estimate of axial induction
+        anew = anew # correct estimate of axial induction
         a = 0.75*a+0.25*anew # for improving convergence, weigh current and previous iteration of axial induction
 
         # calculate aximuthal induction
         aline = ftan*NBlades/(2*np.pi*Uinf*(1-a)*Omega*2*(r_R*Radius)**2)
-        aline = aline * Prandtl# correct estimate of azimuthal induction with Prandtl's correction
+        aline = aline # correct estimate of azimuthal induction with Prandtl's correction
         # ///////////////////////////////////////////////////////////////////////////
         # // end of the block "Calculate new estimate of axial and azimuthal induction"
         # ///////////////////////////////////////////////////////////////////////
@@ -176,7 +176,7 @@ def solverrrrrrrrr_wrapper(TSR, yaw):
     dr = (r_R[1:]-r_R[:-1])*Radius
     CT = np.sum(dr*results[:,3]*NBlades/(0.5*Uinf**2*np.pi*Radius**2))
     CP = np.sum(dr*results[:,4]*results[:,2]*NBlades*Radius*Omega/(0.5*Uinf**3*np.pi*Radius**2))
-    print(CT)
+    print(CP)
 
     return results[:,2], results[:,0]
 
