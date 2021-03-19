@@ -8,18 +8,18 @@ def calc_a(CT,yaw,xi):
     K = 1/np.cos(xi/2)**2
     a = np.zeros(np.shape(CT))
     CT1=1.816;
-    CT2=np.full_like(CT,2*np.sqrt(CT1)-CT1)
+    CT2=2*np.sqrt(CT1)-CT1
     a[CT>=CT2] = (1 + (CT-CT1)/(4*(np.sqrt(CT1)-1)))[CT>=CT2]
-    a[CT<CT2] = (B/2/K-np.sqrt((B/2/K)**2-1/4/K*CT))[CT<CT2]
+    a[CT<CT2] = (1/2-np.sqrt(1-CT)/2)[CT<CT2]
     # a[CT<CT2] = (1 + (CT-CT1)/(4*np.sqrt(CT1)-4))[CT<CT2]
     # a = 0.5*(1-np.sqrt(1-CT))
     return a
 
 def Prandtlf(r, TSR, NBlades, a):
-    d = 2*np.pi/NBlades*(1-a)/np.sqrt(TSR**2+1/(r**2)*(1-a)**2)
-    f_tip = 2/np.pi*np.arccos(np.exp(-np.pi*(1-r)/d))
-    f_root = 2/np.pi*np.arccos(np.exp(-np.pi*(r-0.2)/d))
-    f = f_tip*f_root+1e-4
+    d = NBlades/2*np.sqrt(1+TSR**2*r**2/(1-a)**2)
+    ft = 2/np.pi*np.arccos(np.exp(-d*(1-r)/r))
+    fr = 2/np.pi*np.arccos(np.exp(-d*(r-0.2)/r))
+    f = np.maximum(ft*fr,np.full_like(ft,1e-4))
     return f
 
 class Airfoil:
@@ -51,18 +51,18 @@ def forces(u_a,u_t,chord, twist, arf, uinf, nb, dr, dpsi):
 def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     yaw = np.radians(yaw)
     # initiatlize variables
-    N2 = N*2
+    N2 = N
     dr = (0.8)/N*R
     dpsi = 360/N2/180*np.pi
     # ASk me for Ligma
     r = (np.linspace(0.2*R,R,N)+dr/2)[0:-1]
-    psi = np.linspace(0,360,N2)/180*np.pi
+    psi = np.linspace(-180,180,N2)/180*np.pi
     r,psi = np.meshgrid(r,psi)
     Area = r*dr*dpsi
     arf = Airfoil('DU95.csv')
     chord = chord_d(r/R)
     twist = twist_d(r/R)
-    a= np.full_like(r, 0.3)# axial induction
+    a= np.full_like(r, 0)# axial induction
     al = np.full_like(r, 0) # tangential induction factor
     Omega = Uinf*tsr/R
     
@@ -77,10 +77,10 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
         u_a = (np.cos(yaw)-a*(1+k*r/R*np.sin(psi)))*Uinf
         u_t = (1+al)*Omega*r-Uinf*np.sin(yaw)*np.cos(psi)
         fn,ft = forces(u_a, u_t, chord,twist,arf,Uinf,NB,dr,dpsi)
-        load3Daxial =fn*dr*NB*dpsi*r
+        load3Daxial =fn*dr*NB
         CT = load3Daxial/(0.5*r*dr*Uinf**2*2*np.pi)
         an = calc_a(CT,yaw,chi)
-        ap = ft*NB/(2*np.pi*Uinf*(1-a)*Uinf*tsr*2*(r)**2)
+        ap = ft*dr*NB/(1*(2*np.pi*r)*Uinf**2*(1-a)*tsr*r/R)
         #Ligma Balls
         an = an/Prandtl
         ap = ap/Prandtl
@@ -96,7 +96,7 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
         
     else:
         print("Not converged")
-    return [a,al,r,psi,u_a,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
+    return [a,al,r,psi,u_a,Prandtl,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
     np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*(np.cos(yaw)-a)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi)]
 
 
@@ -115,14 +115,14 @@ def solve_wrapper(TSR, yaw):
     TipLocation_R =  1
     RootLocation_R =  0.2
 
-    result = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,yaw,100)
+    result = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,yaw,50)
     return result
 
 
-a = solve_wrapper(8,0)
+a = solve_wrapper(6,15)
 print(a[-1])
 fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
-im = ax.contourf(a[3], a[2], a[0],100,cmap=color)
+im = ax.contourf(a[3], a[2], a[0],7,cmap=color)
 ax.set_rmin(0)
 plt.colorbar(im)
 plt.show()

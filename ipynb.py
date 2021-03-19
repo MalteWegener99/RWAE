@@ -220,6 +220,6 @@ def solverrrrrrrrr_wrapper(TSR, yaw):
 # plt.show()
 
 n = 5
-plt.plot(*solverrrrrrrrr_wrapper(8,0))
+plt.plot(*solverrrrrrrrr_wrapper(6,0))
 plt.grid()
 plt.show()
