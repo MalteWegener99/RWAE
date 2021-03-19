@@ -1,18 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import cmocean.cm as cms
-color = cms.haline
+color = cms.matter
 
 def calc_a(CT,yaw,xi):
-    B = np.cos(yaw)+np.sin(yaw)*np.tan(xi/2)
-    K = 1/np.cos(xi/2)**2
     a = np.zeros(np.shape(CT))
     CT1=1.816;
     CT2=2*np.sqrt(CT1)-CT1
     a[CT>=CT2] = (1 + (CT-CT1)/(4*(np.sqrt(CT1)-1)))[CT>=CT2]
     a[CT<CT2] = (1/2-np.sqrt(1-CT)/2)[CT<CT2]
-    # a[CT<CT2] = (1 + (CT-CT1)/(4*np.sqrt(CT1)-4))[CT<CT2]
-    # a = 0.5*(1-np.sqrt(1-CT))
+    # a = (1/2-np.sqrt(1-CT)/2)
     return a
 
 def Prandtlf(r, TSR, NBlades, a):
@@ -51,11 +48,11 @@ def forces(u_a,u_t,chord, twist, arf, uinf, nb, dr, dpsi):
 def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     yaw = np.radians(yaw)
     # initiatlize variables
-    N2 = N
-    dr = (0.8)/N*R
+    N2 = 360
+    dr = (0.8)/(N)*R
     dpsi = 360/N2/180*np.pi
     # ASk me for Ligma
-    r = (np.linspace(0.2*R,R,N)+dr/2)[0:-1]
+    r = (np.linspace(0.2*R+dr/2,R-dr/2,N))
     psi = np.linspace(-180,180,N2)/180*np.pi
     r,psi = np.meshgrid(r,psi)
     Area = r*dr*dpsi
@@ -67,8 +64,9 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     Omega = Uinf*tsr/R
     
     Niterations = 10000
-    Erroriterations =0.00001 # error limit for iteration rpocess, in absolute value of induction
+    Erroriterations =0.0000001 # error limit for iteration rpocess, in absolute value of induction
     u_a = 0
+    fnorm = 0
     
     for i in range(Niterations):
         Prandtl = Prandtlf(r/R,tsr,NB,a)
@@ -77,8 +75,8 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
         u_a = (np.cos(yaw)-a*(1+k*r/R*np.sin(psi)))*Uinf
         u_t = (1+al)*Omega*r-Uinf*np.sin(yaw)*np.cos(psi)
         fn,ft = forces(u_a, u_t, chord,twist,arf,Uinf,NB,dr,dpsi)
-        load3Daxial =fn*dr*NB
-        CT = load3Daxial/(0.5*r*dr*Uinf**2*2*np.pi)
+        fnorm =fn*dr*NB
+        CT = fnorm/(0.5*r*dr*Uinf**2*2*np.pi)
         an = calc_a(CT,yaw,chi)
         ap = ft*dr*NB/(1*(2*np.pi*r)*Uinf**2*(1-a)*tsr*r/R)
         #Ligma Balls
@@ -115,11 +113,11 @@ def solve_wrapper(TSR, yaw):
     TipLocation_R =  1
     RootLocation_R =  0.2
 
-    result = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,yaw,50)
+    result = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,yaw,250)
     return result
 
 
-a = solve_wrapper(6,15)
+a = solve_wrapper(10,0)
 print(a[-1])
 fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
 im = ax.contourf(a[3], a[2], a[0],7,cmap=color)
