@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import cmocean.cm as cms
-color = cms.matter
+import numba as nb
+color = cms.thermal
 
 def calc_a(CT,yaw,xi):
     a = np.zeros(np.shape(CT))
@@ -45,6 +46,7 @@ def forces(u_a,u_t,chord, twist, arf, uinf, nb, dr, dpsi):
     ftan = lift*np.sin(phi)-drag*np.cos(phi)
     return fnorm , ftan
 
+
 def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     yaw = np.radians(yaw)
     # initiatlize variables
@@ -59,7 +61,7 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     arf = Airfoil('DU95.csv')
     chord = chord_d(r/R)
     twist = twist_d(r/R)
-    a= np.full_like(r, 0)# axial induction
+    a= np.full_like(r, 0) # axial induction
     al = np.full_like(r, 0) # tangential induction factor
     Omega = Uinf*tsr/R
     
@@ -67,7 +69,6 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     Erroriterations =0.0000001 # error limit for iteration rpocess, in absolute value of induction
     u_a = 0
     fnorm = 0
-    
     for i in range(Niterations):
         Prandtl = Prandtlf(r/R,tsr,NB,a)
         chi = (0.6*a+1)*yaw
@@ -94,11 +95,20 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
         
     else:
         print("Not converged")
-    return [a,al,r,psi,u_a,Prandtl,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
+    p0 = 101325
+    h_neginf = np.full_like(a,p0+Uinf**2/2)
+    h_bef = p0+(Uinf*(1+a))**2/2
+    h_aft = (p0*fnorm/Area)+((Uinf*(1+a))**2+((1+al)*Omega*r)**2)/2
+    h_posinf = p0+(Uinf*(1+2*a))**2/2
+
+    h = [h_neginf,h_bef,h_aft,h_posinf]
+    circ = (fn/np.sqrt(u_a**2+u_t**2))/(np.pi*Uinf**2/NB/(Uinf*tsr/R))
+        
+    return [a,al,r,psi,Prandtl,h,circ,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
     np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*(np.cos(yaw)-a)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi)]
 
 
-def solve_wrapper(TSR, yaw):
+def solve_wrapper(TSR, yaw, N=50):
     pitch = 2 # degrees
     chord_distribution = lambda r_R: 3*(1-r_R)+1 # meters
     twist_distribution = lambda r_R: -14*(1-r_R)+pitch # degrees
@@ -113,23 +123,47 @@ def solve_wrapper(TSR, yaw):
     TipLocation_R =  1
     RootLocation_R =  0.2
 
-    result = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,yaw,250)
+    result = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,yaw,N)
     return result
 
+def polar_plot(TSR, yaw):
+    plt.clf()
+    a = solve_wrapper(TSR,yaw)
+    fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
+    im = ax.contourf(a[3], a[2], a[0],25,cmap=color)
+    ax.set_rmin(0)
+    plt.colorbar(im)
+    plt.tight_layout()
+    plt.savefig("Images/axialinduction"+str(TSR)+str(yaw))
 
-a = solve_wrapper(10,0)
-print(a[-1])
-fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
-im = ax.contourf(a[3], a[2], a[0],7,cmap=color)
-ax.set_rmin(0)
-plt.colorbar(im)
-plt.show()
-print("Done")
+def convergence():
+    plt.clf()
+    ns = np.linspace(2,500,25)
+    res = []
+    for n in ns:
+        res.append(solve_wrapper(8,0,int(n))[-2])
+    res = np.array(res)
+    plt.loglog(ns,res)
+    plt.tight_layout()
+    plt.xlabel("Number of annuli")
+    plt.ylabel("C_T")
+    plt.savefig("Images/convergence")
 
+def polar_plot_circ(TSR, yaw):
+    plt.clf()
+    a = solve_wrapper(TSR,yaw)
+    fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
+    im = ax.contourf(a[3], a[2], a[6],25,cmap=color)
+    ax.set_rmin(0)
+    plt.colorbar(im)
+    plt.tight_layout()
+    plt.savefig("Images/circulation"+str(TSR)+str(yaw))
+
+polar_plot_circ(8,0)
 # yaw = np.linspace(0,30)
 # cp = np.zeros_like(yaw)
 # for i in range(yaw.shape[0]):
-#     cp[i] = solve_wrapper(8,yaw[i])
+#     cp[i] = solve_wrapper(8,yaw[i])[-1]
 
 # plt.plot(yaw,cp/np.max(cp))
 # plt.show()
