@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cmocean.cm as cms
 import numba as nb
+import scipy.optimize as opt
 color = cms.thermal
 
 def calc_a(CT,yaw,xi):
@@ -11,7 +12,8 @@ def calc_a(CT,yaw,xi):
     a[CT>=CT2] = (1 + (CT-CT1)/(4*(np.sqrt(CT1)-1)))[CT>=CT2]
     a[CT<CT2] = (1/2-np.sqrt(1-CT)/2)[CT<CT2]
     # a = (1/2-np.sqrt(1-CT)/2)
-    return a
+    return  np.minimum(a,0.95)
+
 
 def Prandtlf(r, TSR, NBlades, a):
     d = NBlades/2*np.sqrt(1+TSR**2*r**2/(1-a)**2)
@@ -126,6 +128,54 @@ def solve_wrapper(TSR, yaw, N=50):
     result = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,yaw,N)
     return result
 
+def optimization_objective(pa):
+    p, a, b, m, lagrange = pa
+    #2,3,-14
+    pitch = p#2 # degrees
+    chord_distribution = lambda r_R: a*(1-r_R)+m # meters
+    twist_distribution = lambda r_R: b*(1-r_R)+pitch # degrees
+
+    Uinf = 15 # unperturbed wind speed in m/s
+    TSR = 8 # tip speed ratio
+    Radius = 50
+    Omega = Uinf*TSR/Radius
+    NBlades = 3
+    # yaw = 0
+
+    TipLocation_R =  1
+    RootLocation_R =  0.2
+    targetct = 0.75
+    Ct,Cp = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,0,50)[-2:]
+    # maximize Cp while ct is constant
+    return -Cp + lagrange*(np.abs(Ct-targetct))
+
+def optimization_objective2(pa):
+    p, a, b, m, lagrange = pa
+    #2,3,-14
+    pitch = p#2 # degrees
+    chord_distribution = lambda r_R: a*(1-r_R)+m # meters
+    twist_distribution = lambda r_R: b*(1-r_R)+pitch # degrees
+
+    Uinf = 15 # unperturbed wind speed in m/s
+    TSR = 8 # tip speed ratio
+    Radius = 50
+    Omega = Uinf*TSR/Radius
+    NBlades = 3
+    # yaw = 0
+
+    TipLocation_R =  1
+    RootLocation_R =  0.2
+    targetct = 0.75
+    Ct,Cp = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,0,50)[-2:]
+    # maximize Cp while ct is constant
+    return Cp,Ct
+
+def optimize():
+    res = opt.minimize(optimization_objective,[2,3,-14,1,1],method="Powell", bounds=[(0,4),(0,6),(-16,-8),(0.2,3),(1,1)])
+    print(res)
+    print(optimization_objective2(res.x))
+    print(optimization_objective2([2,3,-14,1,0]))
+
 def polar_plot(TSR, yaw):
     plt.clf()
     a = solve_wrapper(TSR,yaw)
@@ -159,7 +209,7 @@ def polar_plot_circ(TSR, yaw):
     plt.tight_layout()
     plt.savefig("Images/circulation"+str(TSR)+str(yaw))
 
-polar_plot_circ(8,0)
+optimize()
 # yaw = np.linspace(0,30)
 # cp = np.zeros_like(yaw)
 # for i in range(yaw.shape[0]):
