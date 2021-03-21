@@ -95,11 +95,13 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
         
     else:
         print("Not converged")
-    p0 = 101325
-    h_neginf = np.full_like(a,p0+Uinf**2/2)
-    h_bef = p0+(Uinf*(1+a))**2/2
-    h_aft = (p0*fnorm/Area)+((Uinf*(1+a))**2+((1+al)*Omega*r)**2)/2
-    h_posinf = p0+(Uinf*(1+2*a))**2/2
+    p0  = 101325
+    rho = 1.225
+
+    h_neginf    = np.full_like(a,p0 + (rho*Uinf**2)/2)
+    h_bef       = 0.5*rho*(Uinf**2 -1*(Uinf*(1-a))**2) + p0 + 0.5*rho*Uinf*(1-a)
+    h_aft       = 0.5*rho*( (Uinf*(1-2*a))**2 -1*(Uinf*(1-a))**2) + p0 + 0.5*rho*Uinf*(1-a)
+    h_posinf    = p0 + (rho*(Uinf*(1-2*a))**2)/2
 
     h = [h_neginf,h_bef,h_aft,h_posinf]
     circ = (fn/np.sqrt(u_a**2+u_t**2))/(np.pi*Uinf**2/NB/(Uinf*tsr/R))
