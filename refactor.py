@@ -50,6 +50,7 @@ def forces(u_a,u_t,chord, twist, arf, uinf, nb, dr, dpsi):
 
 
 def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
+    rho = 1#.225
     yaw = np.radians(yaw)
     # initiatlize variables
     N2 = 360
@@ -68,8 +69,8 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     Omega = Uinf*tsr/R
     
     Niterations = 10000
-    Erroriterations =0.0000001 # error limit for iteration rpocess, in absolute value of induction
-    u_a = 0
+    Erroriterations = 0.0000001 # error limit for iteration rpocess, in absolute value of induction
+    # u_a = 0
     fnorm = 0
     for i in range(Niterations):
         Prandtl = Prandtlf(r/R,tsr,NB,a)
@@ -79,9 +80,10 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
         u_t = (1+al)*Omega*r-Uinf*np.sin(yaw)*np.cos(psi)
         fn,ft = forces(u_a, u_t, chord,twist,arf,Uinf,NB,dr,dpsi)
         fnorm =fn*dr*NB
-        CT = fnorm/(0.5*r*dr*Uinf**2*2*np.pi)
+        # CT = fnorm/(0.5*r*dr*Uinf**2*2*np.pi)
+        CT = fnorm/(0.5*rho*r*dr*Uinf**2*2*np.pi)
         an = calc_a(CT,yaw,chi)
-        ap = ft*dr*NB/(1*(2*np.pi*r)*Uinf**2*(1-a)*tsr*r/R)
+        ap = ft*dr*NB/(2*(2*np.pi*r)*Uinf**2*(1-a)*tsr*r/R)
         #Ligma Balls
         an = an/Prandtl
         ap = ap/Prandtl
@@ -98,7 +100,7 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     else:
         print("Not converged")
     p0  = 101325
-    rho = 1
+    # rho = 1.225
 
     h_neginf    = np.full_like(a,p0 + (rho*Uinf**2)/2)
     h_bef       = 0.5*rho*(Uinf**2 -1*(Uinf*(1-a))**2) + p0 + 0.5*rho*Uinf*(1-a)
@@ -106,7 +108,7 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     h_posinf    = p0 + (rho*(Uinf*(1-2*a))**2)/2
 
     h = [h_neginf,h_bef,h_aft,h_posinf]
-    circ = (fn/np.sqrt(u_a**2+u_t**2))/(np.pi*Uinf**2/NB/(Uinf*tsr/R))
+    circ = (fn/np.sqrt(u_a**2+u_t**2)/rho)/(np.pi*Uinf**2/NB/(Uinf*tsr/R))
         
     return [a,al,r,psi,Prandtl,h,circ,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
     np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*(np.cos(yaw)-a)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi)]
@@ -211,11 +213,12 @@ def polar_plot_circ(TSR, yaw):
     plt.tight_layout()
     plt.savefig("Images/circulation"+str(TSR)+str(yaw))
 
-optimize()
-# yaw = np.linspace(0,30)
-# cp = np.zeros_like(yaw)
-# for i in range(yaw.shape[0]):
-#     cp[i] = solve_wrapper(8,yaw[i])[-1]
+# optimize()
+yaw = np.linspace(0,30)
+cp = np.zeros_like(yaw)
+for i in range(yaw.shape[0]):
+    cp[i] = solve_wrapper(8,yaw[i])[-1]
 
-# plt.plot(yaw,cp/np.max(cp))
-# plt.show()
+plt.plot(yaw,cp/np.max(cp))
+plt.show()
+
