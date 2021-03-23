@@ -98,7 +98,7 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     else:
         print("Not converged")
     p0  = 101325
-    rho = 1.225
+    rho = 1
 
     h_neginf    = np.full_like(a,p0 + (rho*Uinf**2)/2)
     h_bef       = 0.5*rho*(Uinf**2 -1*(Uinf*(1-a))**2) + p0 + 0.5*rho*Uinf*(1-a)
