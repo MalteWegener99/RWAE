@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import cmocean.cm as cms
 import numba as nb
 import scipy.optimize as opt
+import scipy.stats as st
 color = cms.haline
 
 def calc_a(CT,yaw,xi):
@@ -15,9 +16,12 @@ def calc_a(CT,yaw,xi):
     return  np.minimum(a,0.95)
 
 
-def Prandtlf(r, TSR, NBlades, a):
+def Prandtlf(r, TSR, NBlades, a, tiploss):
     d = NBlades/2*np.sqrt(1+TSR**2*r**2/(1-a)**2)
-    ft = 2/np.pi*np.arccos(np.exp(-d*(1-r)/r))
+    if tiploss == True:
+        ft = 2/np.pi*np.arccos(np.exp(-d*(1-r)/r))
+    else:
+        ft = 1
     fr = 2/np.pi*np.arccos(np.exp(-d*(r-0.2)/r))
     f = np.maximum(ft*fr,np.full_like(ft,1e-4))
     return f
@@ -31,6 +35,16 @@ class Airfoil:
 
     def Cd(self, alpha):
         return np.interp((alpha), self.polar[:,0], self.polar[:,2])
+
+# def cosspace(startPoint, endPoint, N):   
+#     midPoint = (endPoint-startPoint)/2
+#     curAngle = np.pi/(N-1)
+#     x = 
+#     for idx in np.arange(2,int(N/2)+0.1):
+#         x[idx] = startPoint + midPoint * (1-np.cos(curAngle))
+#         x[end-(idx-1)] = x[end-(idx-2)]-(x[idx]-x[idx-1])
+    
+#     return x
 
 
 def forces(u_a,u_t,chord, twist, arf, uinf, nb, dr, dpsi):
@@ -49,15 +63,25 @@ def forces(u_a,u_t,chord, twist, arf, uinf, nb, dr, dpsi):
     return fnorm , ftan
 
 
-def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
+def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N, tiploss, constspace=True):
     rho = 1#.225
     yaw = np.radians(yaw)
     # initiatlize variables
     N2 = 360
-    dr = (0.8)/(N)*R
+    if constspace == True:
+        dr = (0.8)/(N)*R
+        r = (np.linspace(0.2*R+dr/2,R-dr/2,N))
+    else:
+        distr = np.arange(N+1)
+        r = ((0.4)*(1 - np.cos(distr*np.pi/N))+0.2)*R
+        dr = r[1:]-r[:-1]
+        drbase = np.ones((360,1))
+        dr = np.kron(drbase,dr)
+        rr = (r[1:] + r[:-1]) / 2
+        r = rr
+        
     dpsi = 360/N2/180*np.pi
     # ASk me for Ligma
-    r = (np.linspace(0.2*R+dr/2,R-dr/2,N))
     psi = np.linspace(-180,180,N2)/180*np.pi
     r,psi = np.meshgrid(r,psi)
     Area = r*dr*dpsi
@@ -73,7 +97,7 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     # u_a = 0
     fnorm = 0
     for i in range(Niterations):
-        Prandtl = Prandtlf(r/R,tsr,NB,a)
+        Prandtl = Prandtlf(r/R,tsr,NB,a, tiploss)
         chi = (0.6*a+1)*yaw
         k = 2*np.tan(0.5*chi)
         u_a = (np.cos(yaw)-a*(1+k*r/R*np.sin(psi)))*Uinf
@@ -103,7 +127,7 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     else:
         print("Not converged")
     p0  = 101325
-    rho = 1.225
+    rho = 1
 
     h_neginf    = np.full_like(a,p0 + (rho*Uinf**2)/2)
     h_bef       = 0.5*rho*(Uinf**2 -1*(Uinf*(1-a))**2) + p0 + 0.5*rho*Uinf*(1-a)
@@ -117,7 +141,7 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*(np.cos(yaw)-a)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi)]
 
 
-def solve_wrapper(TSR, yaw, N=50):
+def solve_wrapper(TSR, yaw, tiploss=True, constspace=True, N=50):
     pitch = 2 # degrees
     chord_distribution = lambda r_R: 3*(1-r_R)+1 # meters
     twist_distribution = lambda r_R: -14*(1-r_R)+pitch # degrees
@@ -132,7 +156,7 @@ def solve_wrapper(TSR, yaw, N=50):
     TipLocation_R =  1
     RootLocation_R =  0.2
 
-    result = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,yaw,N)
+    result = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,yaw,N, tiploss, constspace)
     return result
 
 def optimization_objective(pa):
@@ -330,14 +354,97 @@ def Malte():
         polar_plot_thrust(8,yaw)
         polar_plot_ta(8,yaw)
 
-Malte()
-optimize()
-# polar_plot(8,15)
-# yaw = np.linspace(0,30)
-# cp = np.zeros_like(yaw)
-# for i in range(yaw.shape[0]):
-#     cp[i] = solve_wrapper(8,yaw[i])[-1]
+def tipcor():
+    res  = []
+    col  = ["tab:blue","tab:orange","tab:green", 'tab:red', 'tab:purple']
+    tsrs = [6,8,10]
+    yaws = [15,30]
+    # yaw = 0
+    # for tsr in tsrs:
+    res.append(solve_wrapper(8,0))
+    res.append(solve_wrapper(8,0,False))
+    # for yaw in yaws:
+    res.append(solve_wrapper(8,15))
+    res.append(solve_wrapper(8,15,False))    
+    
+    plt.clf()
+    for i in range(len(res)):
+        print(i)
+        if i == 0 or i == 2:
+            cond = 'with tip correction'
+            yaww = '$\gamma = 0$ '
+        elif i == 2:
+            cond = 'with tip correction'
+            yaww = '$\gamma = 15$ '
+        elif i == 1:
+            cond = 'no tip correction'
+            yaww = '$\gamma = 0$ '
+        elif i == 3:
+            cond = 'no tip correction'
+            yaww = '$\gamma = 15$ '
+        plt.plot(res[i][2][0,:],res[i][0][0,:],"-",c=col[i],label=r"$a_n$ TSR=8, "+yaww + cond)
+        plt.plot(res[i][2][0,:],res[i][1][0,:],"--",c=col[i],label=r"$a_t$ TSR=8, "+yaww + cond)
+    plt.legend()
+    plt.xlabel("Spanwise position [m]")
+    plt.ylabel("Induction factor")
+    plt.tight_layout()
+    plt.savefig("Images/spanwiseinduction-tiploss")
+    
+def annuli():
+    plt.clf()
+    ns = np.linspace(2,500,25)
+    yaw = 0
+    res = []
+    for n in ns:
+        res.append(solve_wrapper(8,yaw,True,int(n))[-2])
+    res = np.array(res)
+    plt.loglog(ns,res)
+    plt.grid(b=True, which='major', color='#666666', linestyle='-')
+    plt.minorticks_on()
+    plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
+    # plt.plot(ns,res)
+    plt.tight_layout()
+    plt.xlabel("Number of annuli")
+    plt.ylabel("$C_T$")
+    # plt.savefig("Images/convergence")
 
-# plt.plot(yaw,cp/np.max(cp))
-# plt.show()
+def spacingmethod():
+    col  = ["tab:blue","tab:orange","tab:green", 'tab:red', 'tab:purple']
+    res = []
+    res.append(solve_wrapper(8, 0, True, True))
+    res.append(solve_wrapper(8, 0, True, False))
+    
+    plt.clf()
+    for i in range(len(res)):
+        if i == 0:
+            spacing = 'constant spacing'
+        else:
+            spacing = 'cosine spacing'
+            
+        plt.plot(res[i][2][0,:],res[i][9][0,:],"-",c=col[i],label=r"axial loading TSR=8, "+ spacing)
+        plt.plot(res[i][2][0,:],res[i][10][0,:],"--",c=col[i],label=r"azimuthal loading TSR=8, "+ spacing)
+    plt.legend()
+    plt.xlabel("Spanwise position [m]")
+    plt.ylabel("Force [N]")
+    plt.tight_layout()
+    plt.savefig("Images/loading")
 
+plt.rcParams.update({'font.size': 17})
+
+# tipcor()
+# annuli()
+# convergence()
+# spacingmethod()
+
+'''checking for spacing errors'''
+N = 50
+R = 50
+distr = np.arange(N+1)
+r = ((0.4)*(1 - np.cos(distr*np.pi/N))+0.2)*R
+dr = r[1:]-r[:-1]
+drbase = np.ones((360,1))
+dr = np.kron(drbase,dr)
+rr = (r[1:] + r[:-1]) / 2
+r = rr
+plt.figure()
+plt.plot(dr[0,:])
