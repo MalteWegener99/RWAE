@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import cmocean.cm as cms
 import numba as nb
 import scipy.optimize as opt
-color = cms.thermal
+color = cms.haline
 
 def calc_a(CT,yaw,xi):
     a = np.zeros(np.shape(CT))
@@ -96,11 +96,14 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
         
         a = an/4+3*a/4
         al = ap/2+al/2
+
+        phi = np.arctan2(u_a,u_t)
+        alpha = np.degrees(phi)+twist
         
     else:
         print("Not converged")
     p0  = 101325
-    # rho = 1.225
+    rho = 1.225
 
     h_neginf    = np.full_like(a,p0 + (rho*Uinf**2)/2)
     h_bef       = 0.5*rho*(Uinf**2 -1*(Uinf*(1-a))**2) + p0 + 0.5*rho*Uinf*(1-a)
@@ -110,7 +113,7 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N):
     h = [h_neginf,h_bef,h_aft,h_posinf]
     circ = (fn/np.sqrt(u_a**2+u_t**2)/rho)/(np.pi*Uinf**2/NB/(Uinf*tsr/R))
         
-    return [a,al,r,psi,Prandtl,h,circ,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
+    return [a,al,r,psi,Prandtl,h,circ,alpha,np.degrees(phi),fnorm*rho,ft*dr*NB*rho,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
     np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*(np.cos(yaw)-a)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi)]
 
 
@@ -133,7 +136,7 @@ def solve_wrapper(TSR, yaw, N=50):
     return result
 
 def optimization_objective(pa):
-    p, a, b, m, lagrange = pa
+    p, a, b, m,lamb = pa
     #2,3,-14
     pitch = p#2 # degrees
     chord_distribution = lambda r_R: a*(1-r_R)+m # meters
@@ -151,13 +154,13 @@ def optimization_objective(pa):
     targetct = 0.75
     Ct,Cp = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,0,50)[-2:]
     # maximize Cp while ct is constant
-    return -Cp + lagrange*(np.abs(Ct-targetct))
+    return -Cp +lamb*((Ct-targetct))
 
 def optimization_objective2(pa):
-    p, a, b, m, lagrange = pa
+    p, a, b, m,l = pa
     #2,3,-14
     pitch = p#2 # degrees
-    chord_distribution = lambda r_R: a*(1-r_R)+m # meters
+    chord_distribution = lambda r_R: a*(1-r_R)+m# meters
     twist_distribution = lambda r_R: b*(1-r_R)+pitch # degrees
 
     Uinf = 15 # unperturbed wind speed in m/s
@@ -172,23 +175,79 @@ def optimization_objective2(pa):
     targetct = 0.75
     Ct,Cp = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,0,50)[-2:]
     # maximize Cp while ct is constant
-    return Cp,Ct
+    return Cp,Ct,Cp/Ct
 
 def optimize():
-    res = opt.minimize(optimization_objective,[2,3,-14,1,1],method="Powell", bounds=[(0,4),(0,6),(-16,-8),(0.2,3),(1,1)])
+    res = opt.minimize(optimization_objective,[2,3,-14,1,1],method="SLSQP",options={"maxfev":10000})#, bounds=[(-4,4),(-6,6),(-16,-8),(0.2,7),(-1,1)])
     print(res)
     print(optimization_objective2(res.x))
     print(optimization_objective2([2,3,-14,1,0]))
 
-def polar_plot(TSR, yaw):
+def polar_plot_ax(TSR, yaw):
     plt.clf()
     a = solve_wrapper(TSR,yaw)
     fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
+    ax.set_theta_zero_location("N")
     im = ax.contourf(a[3], a[2], a[0],25,cmap=color)
     ax.set_rmin(0)
     plt.colorbar(im)
     plt.tight_layout()
     plt.savefig("Images/axialinduction"+str(TSR)+str(yaw))
+
+def polar_plot_ta(TSR, yaw):
+    plt.clf()
+    a = solve_wrapper(TSR,yaw)
+    fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
+    ax.set_theta_zero_location("N")
+    im = ax.contourf(a[3], a[2], a[1],25,cmap=color)
+    ax.set_rmin(0)
+    plt.colorbar(im)
+    plt.tight_layout()
+    plt.savefig("Images/tangetialinduction"+str(TSR)+str(yaw))
+
+def polar_plot_aoa(TSR, yaw):
+    plt.clf()
+    a = solve_wrapper(TSR,yaw)
+    fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
+    ax.set_theta_zero_location("N")
+    im = ax.contourf(a[3], a[2], a[7],25,cmap=color)
+    ax.set_rmin(0)
+    plt.colorbar(im)
+    plt.tight_layout()
+    plt.savefig("Images/aoa"+str(TSR)+str(yaw))
+
+def polar_plot_phi(TSR, yaw):
+    plt.clf()
+    a = solve_wrapper(TSR,yaw)
+    fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
+    ax.set_theta_zero_location("N")
+    im = ax.contourf(a[3], a[2], a[8],25,cmap=color)
+    ax.set_rmin(0)
+    plt.colorbar(im)
+    plt.tight_layout()
+    plt.savefig("Images/phi"+str(TSR)+str(yaw))
+
+def polar_plot_thrust(TSR, yaw):
+    plt.clf()
+    a = solve_wrapper(TSR,yaw)
+    fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
+    ax.set_theta_zero_location("N")
+    im = ax.contourf(a[3], a[2], a[9],25,cmap=color)
+    ax.set_rmin(0)
+    plt.colorbar(im)
+    plt.tight_layout()
+    plt.savefig("Images/thrust"+str(TSR)+str(yaw))
+
+def polar_plot_azimt(TSR, yaw):
+    plt.clf()
+    a = solve_wrapper(TSR,yaw)
+    fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
+    ax.set_theta_zero_location("N")
+    im = ax.contourf(a[3], a[2], a[10],25,cmap=color)
+    ax.set_rmin(0)
+    plt.colorbar(im)
+    plt.tight_layout()
+    plt.savefig("Images/azimth"+str(TSR)+str(yaw))
 
 def convergence():
     plt.clf()
@@ -207,18 +266,78 @@ def polar_plot_circ(TSR, yaw):
     plt.clf()
     a = solve_wrapper(TSR,yaw)
     fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
+    ax.set_theta_zero_location("N")
     im = ax.contourf(a[3], a[2], a[6],25,cmap=color)
     ax.set_rmin(0)
     plt.colorbar(im)
     plt.tight_layout()
     plt.savefig("Images/circulation"+str(TSR)+str(yaw))
 
-# optimize()
-yaw = np.linspace(0,30)
-cp = np.zeros_like(yaw)
-for i in range(yaw.shape[0]):
-    cp[i] = solve_wrapper(8,yaw[i])[-1]
+def Malte():
+    res = []
+    tsrs = [6,8,10]
+    col = ["tab:blue","tab:orange","tab:green"]
+    for tsr in tsrs:
+        res.append(solve_wrapper(tsr,0))
 
-plt.plot(yaw,cp/np.max(cp))
-plt.show()
+    #plot alpha and phi
+    plt.clf()
+    for i in range(len(tsrs)):
+        plt.plot(res[i][2][0,:],res[i][7][0,:],"-",c=col[i],label=r"$\alpha$ TSR="+str(tsrs[i]))
+        plt.plot(res[i][2][0,:],res[i][8][0,:],"--",c=col[i],label=r"$\phi$ TSR="+str(tsrs[i]))
+    plt.legend()
+    plt.xlabel("Spanwise position [m]")
+    plt.ylabel("degrees")
+    plt.tight_layout()
+    plt.savefig("Images/aoaphi")
+
+    plt.clf()
+    for i in range(len(tsrs)):
+        plt.plot(res[i][2][0,:],res[i][0][0,:],"-",c=col[i],label=r"$a_n$ TSR="+str(tsrs[i]))
+        plt.plot(res[i][2][0,:],res[i][1][0,:],"--",c=col[i],label=r"$a_t$ TSR="+str(tsrs[i]))
+    plt.legend()
+    plt.xlabel("Spanwise position [m]")
+    plt.ylabel("Induction factor")
+    plt.tight_layout()
+    plt.savefig("Images/spanwiseinduction")
+
+    plt.clf()
+    for i in range(len(tsrs)):
+        plt.plot(res[i][2][0,:],res[i][9][0,:],"-",c=col[i],label=r"axial loading TSR="+str(tsrs[i]))
+        plt.plot(res[i][2][0,:],res[i][10][0,:],"--",c=col[i],label=r"azimuthal loading TSR="+str(tsrs[i]))
+    plt.legend()
+    plt.xlabel("Spanwise position [m]")
+    plt.ylabel("Force [N]")
+    plt.tight_layout()
+    plt.savefig("Images/loading")
+
+    for i in range(len(tsrs)):
+        print("CT TSR={}: {}".format(tsrs[i], res[i][-2]))
+        print("CP TSR={}: {}".format(tsrs[i], res[i][-2]))
+
+    plt.clf()
+    for i in range(len(tsrs)):
+        plt.plot(res[i][2][0,:],res[i][9][0,:],"-",c=col[i],label=r"axial loading TSR="+str(tsrs[i]))
+        plt.plot(res[i][2][0,:],res[i][10][0,:],"--",c=col[i],label=r"azimuthal loading TSR="+str(tsrs[i]))
+    plt.legend()
+    plt.savefig("Images/loading")
+
+    for yaw in [0,15,30]:
+        polar_plot_aoa(8,yaw)
+        polar_plot_ax(8,yaw)
+        polar_plot_azimt(8,yaw)
+        polar_plot_phi(8,yaw)
+        polar_plot_thrust(8,yaw)
+        polar_plot_ta(8,yaw)
+
+Malte()
+optimize()
+# polar_plot(8,15)
+# yaw = np.linspace(0,30)
+# cp = np.zeros_like(yaw)
+# for i in range(yaw.shape[0]):
+#     cp[i] = solve_wrapper(8,yaw[i])[-1]
+
+# plt.plot(yaw,cp/np.max(cp))
+# plt.show()
 
