@@ -455,7 +455,11 @@ def conv_history():
     # plt.tight_layout()
     # plt.savefig("Images/loading")
 
+<<<<<<< HEAD
 plt.rcParams.update({'font.size': 15})
+=======
+plt.rcParams.update({'font.size': 13})
+>>>>>>> bb2df9d95565c4ca43ad4a288ccbe04f3daf4a0f
 
 # tipcor()
 # annuli()
