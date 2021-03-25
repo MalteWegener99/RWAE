@@ -137,7 +137,7 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N, tiploss, constspace=True):
     h = [h_neginf,h_bef,h_aft,h_posinf]
     circ = (fn/np.sqrt(u_a**2+u_t**2)/rho)/(np.pi*Uinf**2/NB/(Uinf*tsr/R))
         
-    return [a,al,r,psi,Prandtl,h,circ,alpha,np.degrees(phi),fnorm*rho,ft*dr*NB*rho,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
+    return [a,al,r,psi,Prandtl,h,circ,alpha,np.degrees(phi),fn*dr*NB*rho,ft*dr*NB*rho,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
     np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*(np.cos(yaw)-a)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi)]
 
 
@@ -421,20 +421,23 @@ def spacingmethod():
         else:
             spacing = 'cosine spacing'
             
-        plt.plot(res[i][2][0,:],res[i][9][0,:],"-",c=col[i],label=r"axial loading TSR=8, "+ spacing)
-        plt.plot(res[i][2][0,:],res[i][10][0,:],"--",c=col[i],label=r"azimuthal loading TSR=8, "+ spacing)
+        plt.plot(res[i][2][0,:],res[i][0][0,:],"-",c=col[i],label=r"axial loading TSR=8, "+ spacing)
+        plt.plot(res[i][2][0,:],res[i][1][0,:],"--",c=col[i],label=r"azimuthal loading TSR=8, "+ spacing)
     plt.legend()
     plt.xlabel("Spanwise position [m]")
-    plt.ylabel("Force [N]")
+    plt.ylabel("Induction factor")
     plt.tight_layout()
-    plt.savefig("Images/loading")
+    plt.grid()
+    plt.show()
+    print(res[0][-1],res[0][-1])
+    plt.savefig("Images/induction")
 
-plt.rcParams.update({'font.size': 17})
+# plt.rcParams.update({'font.size': 17})
 
 # tipcor()
 # annuli()
 # convergence()
-# spacingmethod()
+spacingmethod()
 
 '''checking for spacing errors'''
 N = 50
