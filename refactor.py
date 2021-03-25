@@ -152,7 +152,7 @@ def optimization_objective(pa):
     targetct = 0.75
     Ct,Cp = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,0,50)[-2:]
     # maximize Cp while ct is constant
-    return -Cp/Ct# +1*(np.abs(Ct-targetct))
+    return -Cp/Ct+0.33*(np.abs(Ct-targetct))
 
 def optimization_objective2(pa):
     p, a, b, m, c = pa
@@ -176,9 +176,22 @@ def optimization_objective2(pa):
     return Cp,Ct,Cp/Ct
 
 def optimize():
+    # optimize for optimal efficiency
     res = opt.minimize(optimization_objective,[1,0,0,0.5,0],method="Powell",options={"maxfev":10000}, bounds=[(-1,1),(-1,1),(-1,1),(0,1),(-1,1)])
     print(res)
     print(optimization_objective2(res.x))
+    # adjust pitch until we get desired CT
+    fn = lambda x: optimization_objective2([x,res.x[1],res.x[2],res.x[3],res.x[4]])[1]-0.75
+    res2 = []
+    d = np.linspace(0,1,100)
+    for x in np.linspace(0,1,100):
+        res2.append(fn(x))
+
+    plt.plot(d,res2)
+    plt.show()
+    x = opt.root_scalar(fn,bracket=[-5,5],method='bisect')
+    print(x)
+    print(optimization_objective2([x.root,res.x[1],res.x[2],res.x[3],res.x[4]]))
 
 
 def polar_plot_ax(TSR, yaw):
@@ -335,9 +348,22 @@ def Malte():
         polar_plot_thrust(8,yaw)
         polar_plot_ta(8,yaw)
 
-Malte()
-convergence()
+def enthalpy():
+    res = solve_wrapper(8,0,200)
+    labels = ["negative $\infty$", "before disk", "after disk", "positive $\infty$"]
+    for i in range(4):
+        plt.plot(res[5][i][0,:],res[2][0,:], label=labels[i])
+    plt.legend()
+    plt.grid()
+    plt.xlabel("Enthalpy [J]")
+    plt.ylabel("Spanwise location [m]")
+    plt.tight_layout()
+    plt.savefig("Images/enthalpy")
+
+# Malte()
+# convergence()
 optimize()
+enthalpy()
 res = solve_wrapper(8,0)
 print(res[-1]/res[-2])
 # polar_plot(8,15)
