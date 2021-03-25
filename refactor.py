@@ -432,7 +432,7 @@ def spacingmethod():
     print(res[0][-1],res[0][-1])
     plt.savefig("Images/induction")
 
-# plt.rcParams.update({'font.size': 17})
+plt.rcParams.update({'font.size': 13})
 
 # tipcor()
 # annuli()
