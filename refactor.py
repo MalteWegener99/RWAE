@@ -133,66 +133,6 @@ def solve_wrapper(TSR, yaw, N=50):
     result = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,yaw,N)
     return result
 
-def optimization_objective(pa):
-    p, a, b, m, c = pa
-    #2,3,-14
-    pitch = p*8#2 # degrees
-    chord_distribution = lambda r_R: a*10*(1-r_R)+m*5+c*10*(1-r_R)**2# meters
-    twist_distribution = lambda r_R: (12.5*b-12.5)*(1-r_R)+pitch # degrees
-
-    Uinf = 15 # unperturbed wind speed in m/s
-    TSR = 8 # tip speed ratio
-    Radius = 50
-    Omega = Uinf*TSR/Radius
-    NBlades = 3
-    # yaw = 0
-
-    TipLocation_R =  1
-    RootLocation_R =  0.2
-    targetct = 0.75
-    Ct,Cp = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,0,50)[-2:]
-    # maximize Cp while ct is constant
-    return -Cp/Ct+0.33*(np.abs(Ct-targetct))
-
-def optimization_objective2(pa):
-    p, a, b, m, c = pa
-    #2,3,-14
-    pitch = p*8#2 # degrees
-    chord_distribution = lambda r_R: a*10*(1-r_R)+m*5+c*10*(1-r_R)**2# meters
-    twist_distribution = lambda r_R: (12.5*b-12.5)*(1-r_R)+pitch # degrees
-
-    Uinf = 15 # unperturbed wind speed in m/s
-    TSR = 8 # tip speed ratio
-    Radius = 50
-    Omega = Uinf*TSR/Radius
-    NBlades = 3
-    # yaw = 0
-
-    TipLocation_R =  1
-    RootLocation_R =  0.2
-    targetct = 0.75
-    Ct,Cp = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,0,50)[-2:]
-    # maximize Cp while ct is constant
-    return Cp,Ct,Cp/Ct
-
-def optimize():
-    # optimize for optimal efficiency
-    res = opt.minimize(optimization_objective,[1,0,0,0.5,0],method="Powell",options={"maxfev":10000}, bounds=[(-1,1),(-1,1),(-1,1),(0,1),(-1,1)])
-    print(res)
-    print(optimization_objective2(res.x))
-    # adjust pitch until we get desired CT
-    fn = lambda x: optimization_objective2([x,res.x[1],res.x[2],res.x[3],res.x[4]])[1]-0.75
-    res2 = []
-    d = np.linspace(0,1,100)
-    for x in np.linspace(0,1,100):
-        res2.append(fn(x))
-
-    plt.plot(d,res2)
-    plt.show()
-    x = opt.root_scalar(fn,bracket=[-5,5],method='bisect')
-    print(x)
-    print(optimization_objective2([x.root,res.x[1],res.x[2],res.x[3],res.x[4]]))
-
 
 def polar_plot_ax(TSR, yaw):
     plt.clf()
@@ -360,10 +300,44 @@ def enthalpy():
     plt.tight_layout()
     plt.savefig("Images/enthalpy")
 
+def operpoint():
+    arf = Airfoil("DU95.csv")
+    #find cl/cd max
+    alpha = np.linspace(0,15)
+    alphabest = 0
+    perbest = 0
+    for a in alpha:
+        perf = arf.Cl(a)**2/arf.Cd(a)**3
+        if perf > perbest:
+            alphabest = a
+            perbest = perf
+
+    res = []
+    tsrs = [6,8,10]
+    col = ["tab:blue","tab:orange","tab:green"]
+    for tsr in tsrs:
+        res.append(solve_wrapper(tsr,0))
+
+    #plot alpha and phi
+    plt.clf()
+    for i in range(len(tsrs)):
+        plt.plot(res[i][2][0,:],res[i][7][0,:],"-",c=col[i],label=r"$\alpha$ TSR="+str(tsrs[i]))
+
+    plt.plot([10,50],[alphabest,alphabest],label="Optimal angle of attack",c="tab:purple")
+    plt.legend()
+    plt.xlabel("Spanwise position [m]")
+    plt.ylabel("degrees")
+    plt.grid()
+    plt.tight_layout()
+    plt.savefig("Images/oper")
+
+    
+
 # Malte()
 # convergence()
-optimize()
-enthalpy()
+# optimize()
+# enthalpy()
+operpoint()
 res = solve_wrapper(8,0)
 print(res[-1]/res[-2])
 # polar_plot(8,15)
