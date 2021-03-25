@@ -96,6 +96,7 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N, tiploss, constspace=True):
     Erroriterations = 0.0000001 # error limit for iteration rpocess, in absolute value of induction
     # u_a = 0
     fnorm = 0
+    CT_sum = []
     for i in range(Niterations):
         Prandtl = Prandtlf(r/R,tsr,NB,a, tiploss)
         chi = (0.6*a+1)*yaw
@@ -112,7 +113,8 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N, tiploss, constspace=True):
         an = an/Prandtl
         ap = ap/Prandtl
 
-        
+        CTsum = np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi)
+        CT_sum.append(CTsum)
         #// test convergence of solution, by checking convergence of axial induction
         if (np.all(np.abs(a-an) < Erroriterations)): 
             print(i,"iterations")
@@ -137,8 +139,10 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N, tiploss, constspace=True):
     h = [h_neginf,h_bef,h_aft,h_posinf]
     circ = (fn/np.sqrt(u_a**2+u_t**2)/rho)/(np.pi*Uinf**2/NB/(Uinf*tsr/R))
         
-    return [a,al,r,psi,Prandtl,h,circ,alpha,np.degrees(phi),fn*dr*NB*rho,ft*dr*NB*rho,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
+    return [a,al,r,psi,Prandtl,h,circ,alpha,np.degrees(phi),fnorm*rho,ft*dr*NB*rho,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
     np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*(np.cos(yaw)-a)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi)]
+    # return [a,al,r,psi,Prandtl,h,circ,alpha,np.degrees(phi),fnorm*rho,ft*dr*NB*rho,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
+    # np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*(np.cos(yaw)-a)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi), CT_sum]
 
 
 def solve_wrapper(TSR, yaw, tiploss=True, constspace=True, N=50):
@@ -295,7 +299,7 @@ def polar_plot_circ(TSR, yaw):
     ax.set_rmin(0)
     plt.colorbar(im)
     plt.tight_layout()
-    plt.savefig("Images/circulation"+str(TSR)+str(yaw))
+    # plt.savefig("Images/circulation"+str(TSR)+str(yaw))
 
 def Malte():
     res = []
@@ -363,42 +367,42 @@ def tipcor():
     # for tsr in tsrs:
     res.append(solve_wrapper(8,0))
     res.append(solve_wrapper(8,0,False))
-    # for yaw in yaws:
-    res.append(solve_wrapper(8,15))
-    res.append(solve_wrapper(8,15,False))    
     
     plt.clf()
     for i in range(len(res)):
         print(i)
-        if i == 0 or i == 2:
+        if i == 0:
             cond = 'with tip correction'
             yaww = '$\gamma = 0$ '
-        elif i == 2:
-            cond = 'with tip correction'
-            yaww = '$\gamma = 15$ '
         elif i == 1:
             cond = 'no tip correction'
             yaww = '$\gamma = 0$ '
-        elif i == 3:
-            cond = 'no tip correction'
-            yaww = '$\gamma = 15$ '
-        plt.plot(res[i][2][0,:],res[i][0][0,:],"-",c=col[i],label=r"$a_n$ TSR=8, "+yaww + cond)
-        plt.plot(res[i][2][0,:],res[i][1][0,:],"--",c=col[i],label=r"$a_t$ TSR=8, "+yaww + cond)
+            
+        plt.plot(res[i][2][0,:],res[i][0][0,:],"-",c=col[i],label=r"$a_n$, TSR=8, "+yaww + cond)
+        plt.plot(res[i][2][0,:],res[i][1][0,:],"--",c=col[i],label=r"$a_t$, TSR=8, "+yaww + cond)
     plt.legend()
     plt.xlabel("Spanwise position [m]")
     plt.ylabel("Induction factor")
+    plt.grid(b=True, which='major', color='#666666', linestyle='-')
+    plt.minorticks_on()
+    plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
     plt.tight_layout()
-    plt.savefig("Images/spanwiseinduction-tiploss")
+    # plt.savefig("Images/spanwiseinduction-tiploss")
     
 def annuli():
     plt.clf()
-    ns = np.linspace(2,500,25)
+    ns = np.linspace(2,1000,25)
     yaw = 0
     res = []
     for n in ns:
-        res.append(solve_wrapper(8,yaw,True,int(n))[-2])
+        res.append(solve_wrapper(8,yaw,True,True,int(n))[-2])
     res = np.array(res)
-    plt.loglog(ns,res)
+    plt.loglog(ns,res,label='TSR=8, $\gamma=0$')
+    # res1 = []
+    # for n in ns:
+    #     res1.append(solve_wrapper(8,15,True,True,int(n))[-2])
+    # res1 = np.array(res1)
+    # plt.loglog(ns,res1,label='TSR=8, $\gamma=15$')
     plt.grid(b=True, which='major', color='#666666', linestyle='-')
     plt.minorticks_on()
     plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
@@ -406,6 +410,7 @@ def annuli():
     plt.tight_layout()
     plt.xlabel("Number of annuli")
     plt.ylabel("$C_T$")
+    # plt.legend()
     # plt.savefig("Images/convergence")
 
 def spacingmethod():
@@ -424,30 +429,50 @@ def spacingmethod():
         plt.plot(res[i][2][0,:],res[i][0][0,:],"-",c=col[i],label=r"axial loading TSR=8, "+ spacing)
         plt.plot(res[i][2][0,:],res[i][1][0,:],"--",c=col[i],label=r"azimuthal loading TSR=8, "+ spacing)
     plt.legend()
+    plt.grid(b=True, which='major', color='#666666', linestyle='-')
+    plt.minorticks_on()
+    plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
     plt.xlabel("Spanwise position [m]")
     plt.ylabel("Induction factor")
-    plt.tight_layout()
-    plt.grid()
-    plt.show()
-    print(res[0][-1],res[0][-1])
-    plt.savefig("Images/induction")
+    plt.ylabel("Force [N]")
+    # plt.tight_layout()
+    # plt.savefig("Images/loading")
+    
+def conv_history():
+    col  = ["tab:blue","tab:orange"]
+    res = []
+    res.append(solve_wrapper(8, 0))
+    # res.append(solve_wrapper(8, 15))
+    
+    plt.loglog(np.arange(len(res[0][-1])),res[0][-1],"-",c=col[0],label=r"TSR=8, $\gamma=0$")
+    # plt.loglog(np.arange(len(res[1][-1])),res[1][-1],"-",c=col[1],label=r"TSR=8, $\gamma=15$")
+    plt.grid(b=True, which='major', color='#666666', linestyle='-')
+    plt.minorticks_on()
+    plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
+    # plt.legend()
+    plt.xlabel("Iteration number")
+    plt.ylabel("$C_T$")
+    # plt.tight_layout()
+    # plt.savefig("Images/loading")
 
-# plt.rcParams.update({'font.size': 17})
+plt.rcParams.update({'font.size': 15})
 
 # tipcor()
 # annuli()
 # convergence()
 spacingmethod()
+# conv_history()
+# polar_plot_circ(8, 30)
 
 '''checking for spacing errors'''
-N = 50
-R = 50
-distr = np.arange(N+1)
-r = ((0.4)*(1 - np.cos(distr*np.pi/N))+0.2)*R
-dr = r[1:]-r[:-1]
-drbase = np.ones((360,1))
-dr = np.kron(drbase,dr)
-rr = (r[1:] + r[:-1]) / 2
-r = rr
-plt.figure()
-plt.plot(dr[0,:])
+# N = 50
+# R = 50
+# distr = np.arange(N+1)
+# r = ((0.4)*(1 - np.cos(distr*np.pi/N))+0.2)*R
+# dr = r[1:]-r[:-1]
+# drbase = np.ones((360,1))
+# dr = np.kron(drbase,dr)
+# rr = (r[1:] + r[:-1]) / 2
+# r = rr
+# plt.figure()
+# plt.plot(dr[0,:])
