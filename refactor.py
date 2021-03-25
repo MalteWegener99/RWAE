@@ -426,15 +426,15 @@ def spacingmethod():
         else:
             spacing = 'cosine spacing'
             
-        plt.plot(res[i][2][0,:],res[i][0][0,:],"-",c=col[i],label=r"axial loading TSR=8, "+ spacing)
-        plt.plot(res[i][2][0,:],res[i][1][0,:],"--",c=col[i],label=r"azimuthal loading TSR=8, "+ spacing)
+        plt.plot(res[i][2][0,:],res[i][0][0,:],"-",c=col[i],label=r"$a_n$, TSR=8, "+ spacing)
+        plt.plot(res[i][2][0,:],res[i][1][0,:],"--",c=col[i],label=r"$a_t$, TSR=8, "+ spacing)
+        
     plt.legend()
     plt.grid(b=True, which='major', color='#666666', linestyle='-')
     plt.minorticks_on()
     plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
     plt.xlabel("Spanwise position [m]")
     plt.ylabel("Induction factor")
-    plt.ylabel("Force [N]")
     # plt.tight_layout()
     # plt.savefig("Images/loading")
     
