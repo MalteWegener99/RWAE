@@ -12,7 +12,6 @@ def calc_a(CT,yaw,xi):
     CT2=2*np.sqrt(CT1)-CT1
     a[CT>=CT2] = (1 + (CT-CT1)/(4*(np.sqrt(CT1)-1)))[CT>=CT2]
     a[CT<CT2] = (1/2-np.sqrt(1-CT)/2)[CT<CT2]
-    # a = (1/2-np.sqrt(1-CT)/2)
     return  np.minimum(a,0.95)
 
 
@@ -35,17 +34,6 @@ class Airfoil:
 
     def Cd(self, alpha):
         return np.interp((alpha), self.polar[:,0], self.polar[:,2])
-
-# def cosspace(startPoint, endPoint, N):   
-#     midPoint = (endPoint-startPoint)/2
-#     curAngle = np.pi/(N-1)
-#     x = 
-#     for idx in np.arange(2,int(N/2)+0.1):
-#         x[idx] = startPoint + midPoint * (1-np.cos(curAngle))
-#         x[end-(idx-1)] = x[end-(idx-2)]-(x[idx]-x[idx-1])
-    
-#     return x
-
 
 def forces(u_a,u_t,chord, twist, arf, uinf, nb, dr, dpsi):
     '''
@@ -81,7 +69,6 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N, tiploss, constspace=True):
         r = rr
         
     dpsi = 360/N2/180*np.pi
-    # ASk me for Ligma
     psi = np.linspace(-180,180,N2)/180*np.pi
     r,psi = np.meshgrid(r,psi)
     Area = r*dr*dpsi
@@ -94,7 +81,6 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N, tiploss, constspace=True):
     
     Niterations = 10000
     Erroriterations = 0.0000001 # error limit for iteration rpocess, in absolute value of induction
-    # u_a = 0
     fnorm = 0
     CT_sum = []
     for i in range(Niterations):
@@ -105,11 +91,9 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N, tiploss, constspace=True):
         u_t = (1+al)*Omega*r-Uinf*np.sin(yaw)*np.cos(psi)
         fn,ft = forces(u_a, u_t, chord,twist,arf,Uinf,NB,dr,dpsi)
         fnorm =fn*dr*NB
-        # CT = fnorm/(0.5*r*dr*Uinf**2*2*np.pi)
         CT = fnorm/(0.5*rho*r*dr*Uinf**2*2*np.pi)
         an = calc_a(CT,yaw,chi)
         ap = ft*dr*NB/(2*(2*np.pi*r)*Uinf**2*(1-a)*tsr*r/R)
-        #Ligma Balls
         an = an/Prandtl
         ap = ap/Prandtl
 
@@ -140,9 +124,7 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N, tiploss, constspace=True):
     circ = (fn/np.sqrt(u_a**2+u_t**2)/rho)/(np.pi*Uinf**2/NB/(Uinf*tsr/R))
         
     return [a,al,r,psi,Prandtl,h,circ,alpha,np.degrees(phi),fnorm*rho,ft*dr*NB*rho,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
-    np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*(np.cos(yaw)-a)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi)]
-    # return [a,al,r,psi,Prandtl,h,circ,alpha,np.degrees(phi),fnorm*rho,ft*dr*NB*rho,np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi),
-    # np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*(np.cos(yaw)-a)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi), CT_sum]
+    np.sum(4*a*(np.cos(yaw)+np.sin(yaw)*np.tan(chi/2)-a/np.cos(chi/2)**2)*(np.cos(yaw)-a)*Area)/(R**2*np.pi-(0.2*R)**2*np.pi), CT_sum]
 
 
 def solve_wrapper(TSR, yaw, tiploss=True, constspace=True, N=50):
@@ -162,54 +144,6 @@ def solve_wrapper(TSR, yaw, tiploss=True, constspace=True, N=50):
 
     result = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,yaw,N, tiploss, constspace)
     return result
-
-def optimization_objective(pa):
-    p, a, b, m,lamb = pa
-    #2,3,-14
-    pitch = p#2 # degrees
-    chord_distribution = lambda r_R: a*(1-r_R)+m # meters
-    twist_distribution = lambda r_R: b*(1-r_R)+pitch # degrees
-
-    Uinf = 15 # unperturbed wind speed in m/s
-    TSR = 8 # tip speed ratio
-    Radius = 50
-    Omega = Uinf*TSR/Radius
-    NBlades = 3
-    # yaw = 0
-
-    TipLocation_R =  1
-    RootLocation_R =  0.2
-    targetct = 0.75
-    Ct,Cp = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,0,50)[-2:]
-    # maximize Cp while ct is constant
-    return -Cp +lamb*((Ct-targetct))
-
-def optimization_objective2(pa):
-    p, a, b, m,l = pa
-    #2,3,-14
-    pitch = p#2 # degrees
-    chord_distribution = lambda r_R: a*(1-r_R)+m# meters
-    twist_distribution = lambda r_R: b*(1-r_R)+pitch # degrees
-
-    Uinf = 15 # unperturbed wind speed in m/s
-    TSR = 8 # tip speed ratio
-    Radius = 50
-    Omega = Uinf*TSR/Radius
-    NBlades = 3
-    # yaw = 0
-
-    TipLocation_R =  1
-    RootLocation_R =  0.2
-    targetct = 0.75
-    Ct,Cp = solve(Radius, Uinf,TSR,chord_distribution,twist_distribution,NBlades,0,50)[-2:]
-    # maximize Cp while ct is constant
-    return Cp,Ct,Cp/Ct
-
-def optimize():
-    res = opt.minimize(optimization_objective,[2,3,-14,1,1],method="SLSQP",options={"maxfev":10000})#, bounds=[(-4,4),(-6,6),(-16,-8),(0.2,7),(-1,1)])
-    print(res)
-    print(optimization_objective2(res.x))
-    print(optimization_objective2([2,3,-14,1,0]))
 
 def polar_plot_ax(TSR, yaw):
     plt.clf()
@@ -282,7 +216,7 @@ def convergence():
     ns = np.linspace(2,500,25)
     res = []
     for n in ns:
-        res.append(solve_wrapper(8,0,int(n))[-2])
+        res.append(solve_wrapper(8,0,int(n))[-3])
     res = np.array(res)
     plt.loglog(ns,res)
     plt.tight_layout()
@@ -340,7 +274,7 @@ def Malte():
     plt.savefig("Images/loading")
 
     for i in range(len(tsrs)):
-        print("CT TSR={}: {}".format(tsrs[i], res[i][-2]))
+        print("CT TSR={}: {}".format(tsrs[i], res[i][-3]))
         print("CP TSR={}: {}".format(tsrs[i], res[i][-2]))
 
     plt.clf()
@@ -395,23 +329,15 @@ def annuli():
     yaw = 0
     res = []
     for n in ns:
-        res.append(solve_wrapper(8,yaw,True,True,int(n))[-2])
+        res.append(solve_wrapper(8,yaw,True,True,int(n))[-3])
     res = np.array(res)
     plt.loglog(ns,res,label='TSR=8, $\gamma=0$')
-    # res1 = []
-    # for n in ns:
-    #     res1.append(solve_wrapper(8,15,True,True,int(n))[-2])
-    # res1 = np.array(res1)
-    # plt.loglog(ns,res1,label='TSR=8, $\gamma=15$')
     plt.grid(b=True, which='major', color='#666666', linestyle='-')
     plt.minorticks_on()
     plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
-    # plt.plot(ns,res)
     plt.tight_layout()
     plt.xlabel("Number of annuli")
     plt.ylabel("$C_T$")
-    # plt.legend()
-    # plt.savefig("Images/convergence")
 
 def spacingmethod():
     col  = ["tab:blue","tab:orange","tab:green", 'tab:red', 'tab:purple']
@@ -435,8 +361,6 @@ def spacingmethod():
     plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
     plt.xlabel("Spanwise position [m]")
     plt.ylabel("Induction factor")
-    # plt.tight_layout()
-    # plt.savefig("Images/loading")
     
 def conv_history():
     col  = ["tab:blue","tab:orange"]
@@ -445,38 +369,25 @@ def conv_history():
     # res.append(solve_wrapper(8, 15))
     
     plt.loglog(np.arange(len(res[0][-1])),res[0][-1],"-",c=col[0],label=r"TSR=8, $\gamma=0$")
-    # plt.loglog(np.arange(len(res[1][-1])),res[1][-1],"-",c=col[1],label=r"TSR=8, $\gamma=15$")
     plt.grid(b=True, which='major', color='#666666', linestyle='-')
     plt.minorticks_on()
     plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
-    # plt.legend()
     plt.xlabel("Iteration number")
     plt.ylabel("$C_T$")
-    # plt.tight_layout()
-    # plt.savefig("Images/loading")
 
-<<<<<<< HEAD
 plt.rcParams.update({'font.size': 15})
-=======
-plt.rcParams.update({'font.size': 13})
->>>>>>> bb2df9d95565c4ca43ad4a288ccbe04f3daf4a0f
 
-# tipcor()
-# annuli()
+TSR1 = 8
+yw = 0
+'''Uncomment wanted plot'''
+# polar_plot_ax(TSR1, yw)
+# polar_plot_ta(TSR1, yw)
+# polar_plot_aoa(TSR1, yw)
+# polar_plot_phi(TSR1, yw)
+# polar_plot_thrust(TSR1, yw)
+# polar_plot_azimt(TSR1, yw)
+# polar_plot_circ(TSR1, yw)
 # convergence()
-spacingmethod()
-# conv_history()
-# polar_plot_circ(8, 30)
+# Malte()
+# tipcor()
 
-'''checking for spacing errors'''
-# N = 50
-# R = 50
-# distr = np.arange(N+1)
-# r = ((0.4)*(1 - np.cos(distr*np.pi/N))+0.2)*R
-# dr = r[1:]-r[:-1]
-# drbase = np.ones((360,1))
-# dr = np.kron(drbase,dr)
-# rr = (r[1:] + r[:-1]) / 2
-# r = rr
-# plt.figure()
-# plt.plot(dr[0,:])
