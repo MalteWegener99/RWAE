@@ -232,8 +232,8 @@ def calc_Forces(u_a,u_t, u_r, chord, twist, arf, rho):
     arf:    airfoil to query
     rho:    Freestream density
     '''
-    vmag2 = u_a**2 + u_t**2
-    phi = np.arctan2(u_a,u_t)
+    vmag2 = u_a**2 + u_t**2 +u_r**2
+    phi = np.arctan2(u_a,np.sqrt(u_t**2+u_r**2))
     alpha = np.degrees(phi)+twist
     cl = arf.Cl(alpha)
     cd = arf.Cd(alpha)
@@ -348,7 +348,6 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
                 print("Inner converged in {} iterations".format(i))
                 break
 
-
             Circ = (Circn+Circ)/2
             if multiple:
                 Circ2 = (Circn2+Circ2)/2
@@ -362,7 +361,7 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
         A = np.pi*Rt**2
 
         Ct = np.sum(Fn*dr)*Nb/(0.5*rho*A*Uinf**2)
-        Cp = np.sum(Fn*Rc*dr)*Nb/(0.5*rho*A*Uinf**2*Rt)
+        Cp = np.sum(Fn*Rc*dr)*Nb*Omega/(0.5*rho*A*Uinf**2*Rt)
         eta = Ct/Cp*J
 
         an = calc_induction(Ct)
