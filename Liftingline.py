@@ -361,7 +361,7 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
         A = np.pi*Rt**2
 
         Ct = np.sum(Fn*dr)*Nb/(0.5*rho*A*Uinf**2)
-        Cp = np.sum(Fn*Rc*dr)*Nb*Omega/(0.5*rho*A*Uinf**2*Rt)
+        Cp = np.sum(Ft*Rc*dr)*Nb*Omega/(0.5*rho*A*Uinf**3)
         eta = Ct/Cp*J
 
         an = calc_induction(Ct)
@@ -419,10 +419,10 @@ Flow = (10,1.225)
 
 
 sol = Performance_BEM_style(*Rotor, 6, *Flow, spacing="cosine", Nr=45, rev=5, Nw=60, multiple=False, offset=1)
-plt.plot(sol["Rel"],sol["aoa"])
-plt.plot(sol["Rel"],sol["phi"], "--")
-plt.show()
+# plt.plot(sol["Rel"],sol["aoa"])
+# plt.plot(sol["Rel"],sol["phi"], "--")
+# plt.show()
 
-plt.plot(sol["Rel"],sol["as"])
-plt.ylim([0,1])
-plt.show()
+# plt.plot(sol["Rel"],sol["as"])
+# plt.ylim([0,1])
+# plt.show()
