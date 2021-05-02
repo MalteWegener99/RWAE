@@ -104,16 +104,22 @@ def cross(a,b):
 
     return np.array([e1,e2,e3]).T
 
-def norm(a):
+def norm(a, limit=False, CORE=0.001):
     """
     Returns:
     norm of vectors a given in (N,3) shape
 
     Arguments:
     a:      Vector
+
+    Optional Keyword Arguments:
+    limit: Limit to CORE min
+    CORE: limitdistance
     """
 
     n = np.sqrt(a[:,0]**2+a[:,1]**2+a[:,2]**2)
+    if limit:
+        n = np.maximum(n,CORE*np.ones_like(n))
     return np.array([n]).T
 
 
@@ -126,7 +132,7 @@ def make_vel_mat(Rp, rev, Nw, Nb, xs, offset=np.array([0,0,0]), phase_shift=0):
     Arguments:
     Rp:     points on the rotorblade, separating the chord elements
     rev:    Number of revolutions tot take into account
-    Nw:     Number of wake elements
+    Nw:     Number of wake elements for each filament
     Nb:     Number of blades, equally spaced obv
     xs:     Streamwise distance covered by the wake in 1 revolution
 
@@ -142,6 +148,7 @@ def make_vel_mat(Rp, rev, Nw, Nb, xs, offset=np.array([0,0,0]), phase_shift=0):
     matu = np.zeros((Nr,Nr)) # x
     matv = np.zeros((Nr,Nr)) # t
     matw = np.zeros((Nr,Nr)) # r
+
     if np.abs(phase_shift) > np.pi:
         print("Warning offset is probably given in deg not radians")
 
@@ -149,9 +156,9 @@ def make_vel_mat(Rp, rev, Nw, Nb, xs, offset=np.array([0,0,0]), phase_shift=0):
     for i in range(Rc.shape[0]):
         for shift in np.linspace(0, 2*np.pi, Nb, endpoint=False):
             # Calculate wake geom of the lower end
-            posl, dirl = calc_midpoint_dir(*trailingvort(Rp[i], xs, rev, shift+phase_shift, Nw+1), invert=True)
+            posl, dirl = calc_midpoint_dir(*trailingvort(Rp[i], xs, rev, shift+phase_shift, int(Nw[i])), invert=True)
             # Calculate wake geom of the upper end
-            posu, diru = calc_midpoint_dir(*trailingvort(Rp[i+1], xs, rev, shift+phase_shift, Nw+1), invert=False)
+            posu, diru = calc_midpoint_dir(*trailingvort(Rp[i+1], xs, rev, shift+phase_shift, int(Nw[i+1])), invert=False)
             posc, dirc = np.array([0,Rc[i]*np.sin(shift+phase_shift),Rc[i]*np.cos(shift+phase_shift)]), np.array([0,(Rp[i+1]-Rp[i])*np.sin(shift+phase_shift),(Rp[i+1]-Rp[i])*np.cos(shift+phase_shift)])
             posc = np.reshape(posc,(1,3))
             dirc = np.reshape(dirc,(1,3))
@@ -164,11 +171,12 @@ def make_vel_mat(Rp, rev, Nw, Nb, xs, offset=np.array([0,0,0]), phase_shift=0):
                 ru = (pos-posu)+offset
                 rc = (pos-posc)+offset
 
-                cl = cross(dirl,rl)/norm(rl)**3
-                cu = cross(diru,ru)/norm(ru)**3
+
+                cl = cross(dirl,rl)/norm(rl,True)**3
+                cu = cross(diru,ru)/norm(ru,True)**3
                 # Deal with 0 distance
                 if norm(rc) > 0:
-                    cc = cross(dirc,rc)/norm(rc)**3
+                    cc = cross(dirc,rc)/norm(rc,True)**3
                 else:
                     cc = np.zeros_like(rc)
 
@@ -184,6 +192,7 @@ def make_vel_mat(Rp, rev, Nw, Nb, xs, offset=np.array([0,0,0]), phase_shift=0):
     # cb = ax[2].imshow(matw)
     # fig.colorbar(cb, ax=ax[2])
     # plt.show()
+
     return matu, matv, matw
 
 class Airfoil:
@@ -232,20 +241,20 @@ def calc_Forces(u_a,u_t, u_r, chord, twist, arf, rho):
     arf:    airfoil to query
     rho:    Freestream density
     '''
-    vmag2 = u_a**2 + u_t**2 +u_r**2
-    phi = np.arctan2(u_a,np.sqrt(u_t**2+u_r**2))
+    vmag2 = u_a**2 + u_t**2 
+    phi = np.arctan2(u_a,(u_t))
     alpha = np.degrees(phi)+twist
     cl = arf.Cl(alpha)
     cd = arf.Cd(alpha)
     lift = 0.5*vmag2*cl*chord*rho
     drag = 0.5*vmag2*cd*chord*rho
     fnorm = lift*np.cos(phi)+drag*np.sin(phi)
-    ftan = lift*np.sin(phi)-drag*np.cos(phi)
+    ftan =  lift*np.sin(phi)-drag*np.cos(phi)
     # Sign conventions are weirtd in wind energy
     circ = -lift/rho/np.sqrt(vmag2)
     return fnorm , ftan, circ
 
-def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spacing="constant", rev=10, Nr=50, Nw=500, Airfoil=Airfoil("DU95.csv"), iter_max=2000, epsilon=1e-5, a=0.2, multiple=False, offset=0, phaseshift=0):
+def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spacing="cosine", rev=60, Nr=50, lw=0.1, Airfoil=Airfoil("DU95.csv"), iter_max=5000, epsilon=1e-5, a=0.2675, multiple=False, offset=0, phaseshift=0):
     """
     Returns:
     Performance of the Rotor specified
@@ -265,7 +274,7 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
     spacing:    How the radial positions are distributed
     rev:        Number of wake revolutions
     Nc:         Radial elements
-    Nw:         Wake elements per filament per rev
+    lw:         length of a segment in the wake in meters
     Airfoil:    Airfoil polar
     iter_max:   Maximum iterations
     epsilon:    Convergence criteria
@@ -283,16 +292,21 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
         Rp = np.linspace(Rh,Rt,Nr)
     elif spacing == "cosine":
         Rp = cospacing(Rh,Rt,Nr)
+
     else:
         raise ValueError
 
     dr = (Rp[1:]-Rp[0:-1])
     Rc = (Rp[1:]-Rp[0:-1])/2+Rp[0:-1]
+
     chord = chord(Rc/Rt)
     twist = twist(Rc/Rt)+pitch
 
+    Nw = np.round(Rp*2*np.pi/lw, decimals=1)
+
     # Outer loop to converge induction factor
-    for j in range(5):
+
+    for j in range(12):
         # calc xs 
         Omega = Uinf*TSR/Rt
         xs = Uinf*(1-a)*2*np.pi/Omega
@@ -306,15 +320,15 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
         # This approach may seem very sophisticated, but it gives the same results as the naive one, and that is twice as fast
         if multiple:
             # Constructing a block matrix with the the influence of the main turbine in the left and secondary in the right
-            matxtemp, matttemp, matrtemp = make_vel_mat(Rp, rev, Nw, Nb, xs, offset=np.array([0,offset*Rt*2,0]), phase_shift=phaseshift)
+            matxtemp, matttemp, matrtemp = make_vel_mat(Rp, rev, (Nw*rev), Nb, xs, offset=np.array([0,offset*Rt*2,0]), phase_shift=phaseshift)
             matx = np.block([matx,matxtemp])
             matt = np.block([matt,matttemp])
             matr = np.block([matr,matrtemp])
 
             # Same for the secondary matrix
             # THe other turbine is of course in teh relative other direction and phaseshift
-            matxtemp, matttemp, matrtemp = make_vel_mat(Rp, rev, Nw, Nb, xs)
-            matx2, matt2, matr2 = make_vel_mat(Rp, rev, Nw, Nb, xs, offset=np.array([0,-offset*Rt*2,0]), phase_shift=-phaseshift)
+            matxtemp, matttemp, matrtemp = make_vel_mat(Rp, rev, (Nw*rev), Nb, xs)
+            matx2, matt2, matr2 = make_vel_mat(Rp, rev, (Nw*rev), Nb, xs, offset=np.array([0,-offset*Rt*2,0]), phase_shift=-phaseshift)
             matx2 = np.block([matx2,matxtemp])
             matt2 = np.block([matt2,matttemp])
             matr2 = np.block([matr2,matrtemp])
@@ -339,7 +353,9 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
                 ut2 = matt@Circt
                 ur2 = matr@Circt
 
-            Fn, Ft, Circn = calc_Forces(ux+Uinf, Omega*Rc+ut, ur, chord, twist, Airfoil, rho)
+            Fn, Ft, Circn = calc_Forces(Uinf+ux, Omega*Rc+ut, ur, chord, twist, Airfoil, rho)
+            # plt.plot(Rc,np.arctan2(Uinf,(Omega*Rc)))
+            # plt.show()
             if multiple:
                 Fn2, Ft2, Circn2 = calc_Forces(ux2+Uinf, Omega*Rc+ut2, ur2, chord, twist, Airfoil, rho)
 
@@ -349,11 +365,13 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
                 break
 
             Circ = (Circn+Circ)/2
+            d = Circn-Circ
             if multiple:
                 Circ2 = (Circn2+Circ2)/2
 
 
         else:
+            print(np.sum(np.abs(d)))
             print("May not have converged")
 
         n = 1/(2*np.pi/Omega)
@@ -364,7 +382,7 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
         Cp = np.sum(Ft*Rc*dr)*Nb*Omega/(0.5*rho*A*Uinf**3)
         eta = Ct/Cp*J
 
-        an = calc_induction(Ct)
+        an = np.sum((-(ux)/Uinf)*dr)/np.sum(dr)#
         if np.abs(an-a) < epsilon:
             a = an
             print("Outer converged in {} iterations".format(j))
@@ -379,7 +397,7 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
     print("CT: ", Ct)
     print("CP: ", Cp)
     print("eta: ", eta)
-    print("a: ", calc_induction(Ct))
+    print("a: ", np.sum((-(ux)/Uinf)*dr)/np.sum(dr))
 
 
     phi = np.arctan2(ux+Uinf,Omega*Rc+ut)
@@ -398,8 +416,9 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
     retval["eta"] = eta
     retval["J"] = J
     #Chimmy changa for the next iteration if thats wanted
-    retval["a"] = calc_induction(Ct)
-    retval["as"] = 1-(ux+Uinf)/Uinf
+    retval["a"] = np.sum((-(ux)/Uinf)*dr)/np.sum(dr)
+    retval["as"] = -ux/Uinf
+    retval["at"] = -ut/(Omega*Rc)
     retval["as2"] = np.sum(retval["as"]*dr)/np.sum(dr)
 
 
@@ -415,14 +434,17 @@ Rotor = (   50*0.2, #Root radius
             2, # degrees
             3) #Numebr of blades
 
-Flow = (10,1.225)
+Flow = (10,1)
 
 
-sol = Performance_BEM_style(*Rotor, 6, *Flow, spacing="cosine", Nr=45, rev=5, Nw=60, multiple=False, offset=1)
-# plt.plot(sol["Rel"],sol["aoa"])
-# plt.plot(sol["Rel"],sol["phi"], "--")
-# plt.show()
+sol = Performance_BEM_style(*Rotor, 8, *Flow, spacing="cosine", Nr=15, rev=50, lw=1, multiple=False, offset=1)
+plt.plot(sol["Rel"],sol["aoa"])
+plt.plot(sol["Rel"],sol["phi"], "--")
+plt.show()
 
-# plt.plot(sol["Rel"],sol["as"])
-# plt.ylim([0,1])
-# plt.show()
+plt.plot(sol["Rel"],sol["as"])
+plt.plot(sol["Rel"],sol["at"])
+plt.plot(sol["Rel"],-sol["Gamma"])
+
+plt.ylim([0,1.4])
+plt.show()
