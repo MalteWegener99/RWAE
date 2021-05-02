@@ -138,25 +138,25 @@ def make_vel_mat(Rp, rev, Nw, Nb, xs, offset=np.array([0,0,0]), phase_shift=0):
     xs:     Streamwise distance covered by the wake in 1 revolution
 
     Optional Keyword Arguments:
-    offset:         specifies an additional offset for thr rotor from the wake, used for multiple rotors
+    offset:         specifies an additional offset for the rotor from the wake, used for multiple rotors
     phase_shift:    Phase difference between wake and rotorm used for multiple rotors
 
     Notes:
     Computational cost mainly scales with size of Rp and Nb, but not with Nw
     """
-    Nr = Rp.shape[0]-1 # Number of spacings (elements) between polints
-    Rc = (Rp[1:]-Rp[0:-1])/2+Rp[0:-1] # Center points of the elements
+    Nr = Rp.shape[0]-1 # Number of spacings (elements) between points
+    Rc = (Rp[1:]-Rp[0:-1])/2+Rp[0:-1] # Center point of each element
     matu = np.zeros((Nr,Nr)) # x
     matv = np.zeros((Nr,Nr)) # t
     matw = np.zeros((Nr,Nr)) # r
     if np.abs(phase_shift) > np.pi:
-        print("Warning offset is probably given in deg not radians")
+        print("Warning phase shift is probably given in deg not radians")
 
 
     for i in range(Rc.shape[0]):
         for shift in np.linspace(0, 2*np.pi, Nb, endpoint=False):
             # Calculate wake geom of the lower end
-            posl, dirl = calc_midpoint_dir(*trailingvort(Rp[i], xs, rev, shift+phase_shift, int(Nw[i])), invert=True)
+            posl, dirl = calc_midpoint_dir(*trailingvort(Rp[i], xs, rev, shift+phase_shift, int(Nw[i])), invert=True) # Invert due to flipped filament
             # Calculate wake geom of the upper end
             posu, diru = calc_midpoint_dir(*trailingvort(Rp[i+1], xs, rev, shift+phase_shift, int(Nw[i+1])), invert=False)
             posc, dirc = np.array([0,Rc[i]*np.sin(shift+phase_shift),Rc[i]*np.cos(shift+phase_shift)]), np.array([0,(Rp[i+1]-Rp[i])*np.sin(shift+phase_shift),(Rp[i+1]-Rp[i])*np.cos(shift+phase_shift)])
@@ -171,28 +171,30 @@ def make_vel_mat(Rp, rev, Nw, Nb, xs, offset=np.array([0,0,0]), phase_shift=0):
                 ru = (pos-posu)+offset
                 rc = (pos-posc)+offset
 
-
+                # Circulations
                 cl = cross(dirl,rl)/norm(rl,True)**3
                 cu = cross(diru,ru)/norm(ru,True)**3
-                # Deal with 0 distance
+                # Deal with 0 distance to avoid division by 0 
                 if norm(rc) > 0:
                     cc = cross(dirc,rc)/norm(rc,True)**3
                 else:
                     cc = np.zeros_like(rc)
 
+                # Add up influence of i on a j (per loop)
                 matu[j,i] += (np.sum(cl[:,0])+np.sum(cu[:,0])+np.sum(cc[:,0]))/4/np.pi
                 matv[j,i] += (np.sum(cl[:,1])+np.sum(cu[:,1])+np.sum(cc[:,1]))/4/np.pi
                 matw[j,i] += (np.sum(cl[:,2])+np.sum(cu[:,2])+np.sum(cc[:,2]))/4/np.pi
 
-    # fig, ax = plt.subplots(1,3)
-    # cb = ax[0].imshow(matu)
-    # fig.colorbar(cb, ax=ax[0])
-    # cb = ax[1].imshow(matv)
-    # fig.colorbar(cb, ax=ax[1])
-    # cb = ax[2].imshow(matw)
-    # fig.colorbar(cb, ax=ax[2])
-    # plt.show()
+    fig, ax = plt.subplots(1,3)
+    cb = ax[0].imshow(matu)
+    fig.colorbar(cb, ax=ax[0])
+    cb = ax[1].imshow(matv)
+    fig.colorbar(cb, ax=ax[1])
+    cb = ax[2].imshow(matw)
+    fig.colorbar(cb, ax=ax[2])
+    plt.show()
     return matu, matv, matw
+
 
 class Airfoil:
     """
@@ -249,7 +251,7 @@ def calc_Forces(u_a,u_t, u_r, chord, twist, arf, rho):
     drag = 0.5*vmag2*cd*chord*rho
     fnorm = lift*np.cos(phi)+drag*np.sin(phi)
     ftan =  lift*np.sin(phi)-drag*np.cos(phi)
-    # Sign conventions are weirtd in wind energy
+    # Sign conventions are weird in wind energy
     circ = -lift/rho/np.sqrt(vmag2)
     return fnorm , ftan, circ
 
@@ -260,7 +262,7 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
 
     Arguments:
     Rh:     Beginning radius of the blade
-    Rt:     Tipradius of the blade
+    Rt:     Tip-radius of the blade
     chord:  callable function that calculates the chord at a Radius
     twist:  callable function that calculates the twist at a Radius
     pitch:  blade pitch
@@ -295,21 +297,21 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
         raise ValueError
 
     dr = (Rp[1:]-Rp[0:-1])
-    Rc = (Rp[1:]-Rp[0:-1])/2+Rp[0:-1]
+    Rc = (Rp[1:]-Rp[0:-1])/2+Rp[0:-1] # Centre of each element
     chord = chord(Rc/Rt)
     twist = twist(Rc/Rt)+pitch
 
     # Outer loop to converge induction factor
 
-    for j in range(12):
+    for j in range(12): # what is this 12 decided by?
         # calc xs 
         Omega = Uinf*TSR/Rt
-        xs = Uinf*(1-a)*2*np.pi/Omega
-        Nw = np.round(np.sqrt((Rp*2*np.pi)**2+xs**2)/lw, decimals=1)
+        xs = Uinf*(1-a)*2*np.pi/Omega # Uinf(1-a) is the horizontal component of freestream velocity
+        Nw = np.round(np.sqrt((Rp*2*np.pi)**2+xs**2)/lw, decimals=1) # Number of wave elements for each filament (point on blade)
 
-        assert xs > 0
+        assert xs > 0 # Check for positive value of xs. If it's not, throw error
 
-        # plot_wakesystem(Rp,xs,rev,Nw,Nr,Nb)
+        # plot_wakesystem(Rp,xs,rev,Nw,Nr,Nb) # Is this suppose to work?
 
         # Setting up influence matrices
         matx, matt, matr = make_vel_mat(Rp, rev, (Nw*rev), Nb, xs)
@@ -323,7 +325,7 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
             matr = np.block([matr,matrtemp])
 
             # Same for the secondary matrix
-            # THe other turbine is of course in teh relative other direction and phaseshift
+            # THe other turbine is of course in the relative other direction and phaseshift
             matxtemp, matttemp, matrtemp = make_vel_mat(Rp, rev, (Nw*rev), Nb, xs)
             matx2, matt2, matr2 = make_vel_mat(Rp, rev, (Nw*rev), Nb, xs, offset=np.array([0,-offset*Rt*2,0]), phase_shift=-phaseshift)
             matx2 = np.block([matx2,matxtemp])
@@ -346,9 +348,9 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
             ur = matr@Circt
 
             if multiple:
-                ux2 = matx@Circt
-                ut2 = matt@Circt
-                ur2 = matr@Circt
+                ux2 = matx2@Circt
+                ut2 = matt2@Circt
+                ur2 = matr2@Circt
 
             Fn, Ft, Circn = calc_Forces(Uinf+ux, Omega*Rc+ut, ur, chord, twist, Airfoil, rho)
             # plt.plot(Rc,np.arctan2(Uinf,(Omega*Rc)))
@@ -426,8 +428,8 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
 
 Rotor = (   50*0.2, #Root radius
             50, #Tip radius
-            lambda r_R: 3*(1-r_R)+1, # meters
-            lambda r_R: -14*(1-r_R), # degrees
+            lambda r_R: 3*(1-r_R)+1, # meters - for chord
+            lambda r_R: -14*(1-r_R), # degrees - for twist
             2, # degrees
             3) #Numebr of blades
 
