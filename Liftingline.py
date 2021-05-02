@@ -104,7 +104,7 @@ def cross(a,b):
 
     return np.array([e1,e2,e3]).T
 
-def norm(a, limit=False, CORE=0.001):
+def norm(a, limit=False, CORE=0.00001):
     """
     Returns:
     norm of vectors a given in (N,3) shape
@@ -302,14 +302,14 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
     chord = chord(Rc/Rt)
     twist = twist(Rc/Rt)+pitch
 
-    Nw = np.round(Rp*2*np.pi/lw, decimals=1)
-
     # Outer loop to converge induction factor
 
     for j in range(12):
         # calc xs 
         Omega = Uinf*TSR/Rt
         xs = Uinf*(1-a)*2*np.pi/Omega
+        Nw = np.round(np.sqrt((Rp*2*np.pi)**2+xs**2)/lw, decimals=1)
+
         assert xs > 0
 
         # plot_wakesystem(Rp,xs,rev,Nw,Nr,Nb)
@@ -382,7 +382,7 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
         Cp = np.sum(Ft*Rc*dr)*Nb*Omega/(0.5*rho*A*Uinf**3)
         eta = Ct/Cp*J
 
-        an = np.sum((-(ux)/Uinf)*dr)/np.sum(dr)#
+        an = calc_induction(Ct)#np.sum((-(ux)/Uinf)*dr)/np.sum(dr)#
         if np.abs(an-a) < epsilon:
             a = an
             print("Outer converged in {} iterations".format(j))
@@ -437,7 +437,7 @@ Rotor = (   50*0.2, #Root radius
 Flow = (10,1)
 
 
-sol = Performance_BEM_style(*Rotor, 8, *Flow, spacing="cosine", Nr=15, rev=50, lw=1, multiple=False, offset=1)
+sol = Performance_BEM_style(*Rotor, 8, *Flow, spacing="constant", Nr=60, rev=10, lw=1, multiple=False, offset=1)
 plt.plot(sol["Rel"],sol["aoa"])
 plt.plot(sol["Rel"],sol["phi"], "--")
 plt.show()
