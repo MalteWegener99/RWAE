@@ -106,9 +106,6 @@ def solve(R, Uinf, tsr, chord_d, twist_d, NB,yaw, N, tiploss, constspace=True):
         
         a = an/4+3*a/4
         al = ap/2+al/2
-
-        phi = np.arctan2(u_a,u_t)
-        alpha = np.degrees(phi)+twist
         
     else:
         print("Not converged")
@@ -150,7 +147,7 @@ def polar_plot_ax(TSR, yaw):
     a = solve_wrapper(TSR,yaw)
     fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
     ax.set_theta_zero_location("N")
-    im = ax.contourf(a[3], a[2], a[0],25,cmap=color)
+    im = ax.contourf(a[3], a[2], a[0],25,cmap=color,label="Induction factor")
     ax.set_rmin(0)
     plt.colorbar(im)
     plt.tight_layout()
@@ -161,7 +158,7 @@ def polar_plot_ta(TSR, yaw):
     a = solve_wrapper(TSR,yaw)
     fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
     ax.set_theta_zero_location("N")
-    im = ax.contourf(a[3], a[2], a[1],25,cmap=color)
+    im = ax.contourf(a[3], a[2], a[1],25,cmap=color,label="Induction factor")
     ax.set_rmin(0)
     plt.colorbar(im)
     plt.tight_layout()
@@ -172,7 +169,7 @@ def polar_plot_aoa(TSR, yaw):
     a = solve_wrapper(TSR,yaw)
     fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
     ax.set_theta_zero_location("N")
-    im = ax.contourf(a[3], a[2], a[7],25,cmap=color)
+    im = ax.contourf(a[3], a[2], a[7],25,cmap=color,label="angle of attack [deg]")
     ax.set_rmin(0)
     plt.colorbar(im)
     plt.tight_layout()
@@ -183,7 +180,7 @@ def polar_plot_phi(TSR, yaw):
     a = solve_wrapper(TSR,yaw)
     fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
     ax.set_theta_zero_location("N")
-    im = ax.contourf(a[3], a[2], a[8],25,cmap=color)
+    im = ax.contourf(a[3], a[2], a[8],25,cmap=color,label="inflow angle [deg]")
     ax.set_rmin(0)
     plt.colorbar(im)
     plt.tight_layout()
@@ -194,7 +191,7 @@ def polar_plot_thrust(TSR, yaw):
     a = solve_wrapper(TSR,yaw)
     fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
     ax.set_theta_zero_location("N")
-    im = ax.contourf(a[3], a[2], a[9],25,cmap=color)
+    im = ax.contourf(a[3], a[2], a[9],25,cmap=color,label="Thrust [N]")
     ax.set_rmin(0)
     plt.colorbar(im)
     plt.tight_layout()
@@ -205,7 +202,7 @@ def polar_plot_azimt(TSR, yaw):
     a = solve_wrapper(TSR,yaw)
     fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
     ax.set_theta_zero_location("N")
-    im = ax.contourf(a[3], a[2], a[10],25,cmap=color)
+    im = ax.contourf(a[3], a[2], a[10],25,cmap=color,label="Azimuthal force [N]")
     ax.set_rmin(0)
     plt.colorbar(im)
     plt.tight_layout()
@@ -250,6 +247,7 @@ def Malte():
     plt.legend()
     plt.xlabel("Spanwise position [m]")
     plt.ylabel("degrees")
+    plt.grid()
     plt.tight_layout()
     plt.savefig("Images/aoaphi")
 
@@ -260,6 +258,7 @@ def Malte():
     plt.legend()
     plt.xlabel("Spanwise position [m]")
     plt.ylabel("Induction factor")
+    plt.grid()
     plt.tight_layout()
     plt.savefig("Images/spanwiseinduction")
 
@@ -270,6 +269,7 @@ def Malte():
     plt.legend()
     plt.xlabel("Spanwise position [m]")
     plt.ylabel("Force [N]")
+    plt.grid()
     plt.tight_layout()
     plt.savefig("Images/loading")
 
@@ -282,6 +282,10 @@ def Malte():
         plt.plot(res[i][2][0,:],res[i][9][0,:],"-",c=col[i],label=r"axial loading TSR="+str(tsrs[i]))
         plt.plot(res[i][2][0,:],res[i][10][0,:],"--",c=col[i],label=r"azimuthal loading TSR="+str(tsrs[i]))
     plt.legend()
+    plt.xlabel("Spanwise position [m]")
+    plt.ylabel("Force [N]")
+    plt.grid()
+    plt.tight_layout()
     plt.savefig("Images/loading")
 
     for yaw in [0,15,30]:
