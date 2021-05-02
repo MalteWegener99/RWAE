@@ -138,8 +138,8 @@ def make_vel_mat(Rp, rev, Nw, Nb, xs, offset=np.array([0,0,0]), phase_shift=0):
     Notes:
     Computational cost mainly scales with size of Rp and Nb, but not with Nw
     """
-    Nr = Rp.shape[0]-1
-    Rc = (Rp[1:]-Rp[0:-1])/2+Rp[0:-1]
+    Nr = Rp.shape[0]-1 # Number of spacings (elements) between polints
+    Rc = (Rp[1:]-Rp[0:-1])/2+Rp[0:-1] # Center points of the elements
     matu = np.zeros((Nr,Nr)) # x
     matv = np.zeros((Nr,Nr)) # t
     matw = np.zeros((Nr,Nr)) # r
