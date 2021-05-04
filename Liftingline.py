@@ -254,7 +254,7 @@ def calc_Forces(u_a,u_t, u_r, chord, twist, arf, rho):
     circ = -lift/rho/np.sqrt(vmag2)
     return fnorm , ftan, circ
 
-def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spacing="cosine", rev=60, Nr=50, lw=0.1, Airfoil=Airfoil("DU95.csv"), iter_max=5000, epsilon=1e-5, a=0.2675, multiple=False, offset=0, phaseshift=0):
+def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spacing="cosine", rev=60, Nr=50, lw=0.1, Airfoil=Airfoil("DU95.csv"), iter_max=5000, epsilon=1e-5, a=0.2675, multiple=False, offset=0, phaseshift=0, iteratea=True):
     """
     Returns:
     Performance of the Rotor specified
@@ -282,6 +282,7 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
     multiple:   If 2 rotors are to be computed next to each other
     offset:     Distance between 2 rotors in Diameters of rotor
     phaseshift: phase offset between the 2 rotors
+    iteratea:   Iterate a to convergence or not
 
     Notes:
     Computational cost mainly scales with size of Rp and Nb, but not with Nw
@@ -349,9 +350,9 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
             ur = matr@Circt
 
             if multiple:
-                ux2 = matx@Circt
-                ut2 = matt@Circt
-                ur2 = matr@Circt
+                ux2 = matx2@Circt
+                ut2 = matt2@Circt
+                ur2 = matr2@Circt
 
             Fn, Ft, Circn = calc_Forces(Uinf+ux, Omega*Rc+ut, ur, chord, twist, Airfoil, rho)
             # plt.plot(Rc,np.arctan2(Uinf,(Omega*Rc)))
@@ -382,7 +383,11 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
         Cp = np.sum(Ft*Rc*dr)*Nb*Omega/(0.5*rho*A*Uinf**3)
         eta = Ct/Cp*J
 
-        an = calc_induction(Ct)#np.sum((-(ux)/Uinf)*dr)/np.sum(dr)#
+        if iteratea:
+            an = np.sum((-(ux)/Uinf)*dr)/np.sum(dr)
+        else:
+            an = a
+            
         if np.abs(an-a) < epsilon:
             a = an
             print("Outer converged in {} iterations".format(j))
@@ -419,7 +424,7 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
     retval["a"] = np.sum((-(ux)/Uinf)*dr)/np.sum(dr)
     retval["as"] = -ux/Uinf
     retval["at"] = -ut/(Omega*Rc)
-    retval["as2"] = np.sum(retval["as"]*dr)/np.sum(dr)
+
 
 
 
@@ -437,7 +442,7 @@ Rotor = (   50*0.2, #Root radius
 Flow = (10,1)
 
 
-sol = Performance_BEM_style(*Rotor, 8, *Flow, spacing="constant", Nr=60, rev=10, lw=1, multiple=False, offset=1)
+sol = Performance_BEM_style(*Rotor, 8, *Flow, spacing="constant", Nr=30, rev=200, lw=1, multiple=False, offset=1)
 plt.plot(sol["Rel"],sol["aoa"])
 plt.plot(sol["Rel"],sol["phi"], "--")
 plt.show()
