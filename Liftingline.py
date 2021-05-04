@@ -320,7 +320,7 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
             matr = np.block([matr,matrtemp])
 
             # Same for the secondary matrix
-            # THe other turbine is of course in the relative other direction and phaseshift
+            # The other turbine is of course in the relative other direction and phaseshift
             matxtemp, matttemp, matrtemp = make_vel_mat(Rp, rev, (Nw*rev), Nb, xs)
             matx2, matt2, matr2 = make_vel_mat(Rp, rev, (Nw*rev), Nb, xs, offset=np.array([0,-offset*Rt*2,0]), phase_shift=-phaseshift)
             matx2 = np.block([matx2,matxtemp])
