@@ -153,7 +153,7 @@ def make_vel_mat(Rp, rev, Nw, Nb, xs, offset=np.array([0,0,0]), phase_shift=0):
         print("Warning phase shift is probably given in deg not radians")
 
 
-    for i in range(Rc.shape[0]):
+    for i in range(Rc.shape[0]): # i represents each element on the blade
         for shift in np.linspace(0, 2*np.pi, Nb, endpoint=False):
             # Calculate wake geom of the lower end
             posl, dirl = calc_midpoint_dir(*trailingvort(Rp[i], xs, rev, shift+phase_shift, int(Nw[i])), invert=True) # Invert due to flipped filament
@@ -164,7 +164,7 @@ def make_vel_mat(Rp, rev, Nw, Nb, xs, offset=np.array([0,0,0]), phase_shift=0):
             dirc = np.reshape(dirc,(1,3))
             # u = Gamma/4/pi/r^3*dir x r
 
-            #Influence of i on j so we set mat[j,i]
+            #Influence of i on j so we set mat[j,i] - influence of i-th element to the other elements of the blade
             for j in range(Rc.shape[0]):
                 pos = np.array([0,0,Rc[j]])
                 rl = (pos-posl)+offset
@@ -185,14 +185,8 @@ def make_vel_mat(Rp, rev, Nw, Nb, xs, offset=np.array([0,0,0]), phase_shift=0):
                 matv[j,i] += (np.sum(cl[:,1])+np.sum(cu[:,1])+np.sum(cc[:,1]))/4/np.pi
                 matw[j,i] += (np.sum(cl[:,2])+np.sum(cu[:,2])+np.sum(cc[:,2]))/4/np.pi
 
-    fig, ax = plt.subplots(1,3)
-    cb = ax[0].imshow(matu)
-    fig.colorbar(cb, ax=ax[0])
-    cb = ax[1].imshow(matv)
-    fig.colorbar(cb, ax=ax[1])
-    cb = ax[2].imshow(matw)
-    fig.colorbar(cb, ax=ax[2])
-    plt.show()
+    fig, ax 
+    
     return matu, matv, matw
 
 
@@ -319,8 +313,8 @@ def Performance_BEM_style(Rh, Rt, chord, twist, pitch, Nb, TSR, Uinf, rho, spaci
         # This approach may seem very sophisticated, but it gives the same results as the naive one, and that is twice as fast
         if multiple:
             # Constructing a block matrix with the the influence of the main turbine in the left and secondary in the right
-            matxtemp, matttemp, matrtemp = make_vel_mat(Rp, rev, (Nw*rev), Nb, xs, offset=np.array([0,offset*Rt*2,0]), phase_shift=phaseshift)
-            matx = np.block([matx,matxtemp])
+            matxtemp, matttemp, matrtemp = make_vel_mat(Rp, rev, (Nw*rev), Nb, xs, offset=np.array([0,offset*Rt*2,0]), phase_shift=phaseshift) # influence from the other turbine
+            matx = np.block([matx,matxtemp]) # rows: elements for this particular turbine under influence, columns: elements from both this and other turbines that influence
             matt = np.block([matt,matttemp])
             matr = np.block([matr,matrtemp])
 
