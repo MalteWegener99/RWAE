@@ -3,13 +3,15 @@ import matplotlib.pyplot as plt
 
 # CCW is positive
 
-def solve_steady(Vpos, Cpos, Cnorm, Wpos, Ws, Vinf):
+def solve_steady(Vpos, Cpos, Cnorm, Wpos, Ws, Vinf, Vnorm):
     """
     Vpos: 2xN array
     Cpos: 2xN array
     Cnorm: 2xN array
     Wpos: 2xM array
     Ws: 2xM array
+    Vnorm: 1xN array
+
     """
 
     mtmp = np.array([[0,1.0],[-1,0]])
@@ -21,17 +23,15 @@ def solve_steady(Vpos, Cpos, Cnorm, Wpos, Ws, Vinf):
         # u,v = Gamma/2/pi/r * [[0,1][-1,0]] (cp-Vpos)
         r = np.reshape(Cpos[:,i],(2,1))-Vpos
         r2 = np.sqrt(r[0,:]**2+r[1,:]**2)
-        r2 = r2**(1/2)
         ru = mtmp@r
         ru = ru/np.sqrt(ru[0,:]**2+ru[1,:]**2)
         u = -(1/2/np.pi/r2*ru)
         mat[i,:] = (np.reshape(Cnorm[:,i],(1,2)))@u
         
 
-        rhs[i] = -Vinf*Cnorm[0,i]
+        rhs[i] = -Vinf*Cnorm[0,i]-Vnorm[i]
         r = np.reshape(Cpos[:,i],(2,1))-Wpos
         r2 = np.sqrt(r[0,:]**2+r[1,:]**2)
-        r2 = r2**(1/2)
         ru = mtmp@r
         ru = ru/np.sqrt(ru[0,:]**2+ru[1,:]**2)
         u = -(1/2/np.pi/r2*ru)*Ws
@@ -45,7 +45,9 @@ def solve_steady(Vpos, Cpos, Cnorm, Wpos, Ws, Vinf):
 def gen_arf(aoa, N):
     aoa = -np.radians(aoa)
     Vpos = np.linspace(0,1,N)
-    Cpos = Vpos+2/(N-1)/4
+    Vpos = Vpos[:-1]
+    Cpos = Vpos+3/(N-1)/4
+    Vpos = Vpos+1/(N-1)/4
     # Cpos[-1] = 1
     Cnorm = np.ones((2,N))
     Cnorm[0,:] = 0
@@ -74,7 +76,6 @@ def advect_wake(Vpos, Vs, Wpos, Ws, Vinf):
     for i in range(M):
         r = np.reshape(Wpos[:,i],(2,1))-Vpos
         r2 = np.sqrt(r[0,:]**2+r[1,:]**2)
-        r2 = r2**(1/2)
         ru = mtmp@r
         ru = ru/np.sqrt(ru[0,:]**2+ru[1,:]**2)
         u = -(1/2/np.pi/r2*ru)*Vs
@@ -83,7 +84,6 @@ def advect_wake(Vpos, Vs, Wpos, Ws, Vinf):
         
         r = np.reshape(Wpos[:,i],(2,1))-Wpos
         r2 = np.sqrt(r[0,:]**2+r[1,:]**2)
-        r2 = r2**(1/2)
         ru = mtmp@r
         ru = ru/np.sqrt(ru[0,:]**2+ru[1,:]**2)
         u = -(1/2/np.pi/r2*ru)*Ws
@@ -93,11 +93,11 @@ def advect_wake(Vpos, Vs, Wpos, Ws, Vinf):
 
     return vel
 
-def streamfunction(N, Vpos, Vs, Wpos, Ws):
+def streamfunction(N, Vpos, Vs, Wpos, Ws,_,__):
     
     px = np.hstack((Vpos[0,:],Wpos[0,:]))
     py = np.hstack((Vpos[1,:],Wpos[1,:]))
-    x = np.linspace(1,np.max(px),N)
+    x = np.linspace(-1,max(2,np.max(px)),N)
     y = np.linspace(-1,1,N)
     xx,yy = np.meshgrid(x,y)
     s = np.hstack((Vs,Ws))
@@ -112,28 +112,91 @@ def streamfunction(N, Vpos, Vs, Wpos, Ws):
     plt.contourf(xx,yy,sf,50)
     s = plt.scatter(px,py,c=s)
     plt.colorbar(s)
+    # plt.axis("equal")
     plt.show()
 
-def solve(Vinf, k, N, dt, T, aoamax):
-    Nt = int(T/dt)
+def velocityfield(N, Vpos, Vs, Wpos, Ws,_,__):
+    
+    px = np.hstack((Vpos[0,:],Wpos[0,:]))
+    py = np.hstack((Vpos[1,:],Wpos[1,:]))
+    xo = np.linspace(-1,max(2,np.max(px)),N)
+    yo = np.linspace(-1,1,N)
+    xx,yy = np.meshgrid(xo,yo)
+    s = np.hstack((Vs,Ws))
+    # s = np.clip(s,-1,1)
+    sf = yy.copy()
+    # sf = 0
+    
 
+    for i in range(px.shape[0]):
+        r = np.sqrt((xx-px[i])**2+(yy-py[i])**2)
+        r = np.clip(r,0.02,np.max(r))
+        sf -= s[i]/2/np.pi*np.log(r)
+    uy = -np.gradient(sf,xo[1]-xo[0],axis=1)
+    ux = np.gradient(sf,yo[1]-yo[0],axis=0)
+    um = np.sqrt(ux**2+uy**2)
+    # um = np.clip(um,0,3)
+    s=plt.contourf(xx,yy,um,50)
+    cp = 1-um**2
+    plt.contour(xx,yy,cp,50,colors="k")
+    plt.scatter(Vpos[0,:],Vpos[1,:])
+    plt.colorbar(s)
+    # plt.axis("equal")
+    plt.show()
+
+def pressurefield(N, Vpos, Vs, Wpos, Ws,_,__):
+    
+    px = np.hstack((Vpos[0,:],Wpos[0,:]))
+    py = np.hstack((Vpos[1,:],Wpos[1,:]))
+    xo = np.linspace(-1,max(2,np.max(px)),N)
+    yo = np.linspace(-1,1,N)
+    xx,yy = np.meshgrid(xo,yo)
+    s = np.hstack((Vs,Ws))
+    # s = np.clip(s,-1,1)
+    sf = yy.copy()
+    # sf = 0
+    
+
+    for i in range(px.shape[0]):
+        r = np.sqrt((xx-px[i])**2+(yy-py[i])**2)
+        r = np.clip(r,0.02,np.max(r))
+        sf -= s[i]/2/np.pi*np.log(r)
+    uy = -np.gradient(sf,xo[1]-xo[0],axis=1)
+    ux = np.gradient(sf,yo[1]-yo[0],axis=0)
+    um = np.sqrt(ux**2+uy**2)
+    cp = 1-um**2
+    # um = np.clip(um,0,3)
+    s=plt.contourf(xx,yy,cp,50)
+    plt.scatter(Vpos[0,:],Vpos[1,:])
+    plt.colorbar(s)
+    # plt.axis("equal")
+    plt.show()
+
+def solve( k, N, dt, T, f_aoa, include_acceleration=False):
+    Vinf = 1
     Wpos = np.zeros((2,1))
     Ws = np.zeros(1)
     Cl = [0]
-    a = []
+    a = [0]
     omega = k*2*Vinf
-    for i in range(Nt):
-        print(dt*i, Ws.shape)
-        aoa = np.sin(dt*i*omega*np.pi)*aoamax
+    T = 2/omega*T
+    Nt = int(T/dt)
+
+    for i in range(Nt+1):
+        print(i/(Nt+1), Ws.shape,end="                                \r")
+        aoa = f_aoa(dt*i*omega*np.pi)
         a.append(aoa)
         Vpos, Cpos, Cnorm = gen_arf(aoa, N)
-        circ = solve_steady(Vpos, Cpos, Cnorm, Wpos, Ws, Vinf)
-        Cl.append(-np.sum(circ))
+        _, Cpos2, _ = gen_arf(0, N)
+        Cpos2 = Cpos2[0,:]
+        Vnorm = (Cpos2-0.25)*(a[-1]-a[-2])/dt*(1 if include_acceleration else 0)
+        circ = solve_steady(Vpos, Cpos, Cnorm, Wpos, Ws, Vinf, Vnorm)
+        Cl.append(-np.sum(circ)*2)
         vel = advect_wake(Vpos,circ,Wpos,Ws,Vinf)
         Wpos += vel*dt
-        Wnew = (Vpos[:,-1]).reshape((2,1))
+        Wnew = (Vpos[:,-1]+vel[:,0]*dt).reshape((2,1))
         Wpos = np.hstack((Wnew,Wpos))
-        Ws = np.hstack((-1*(Cl[-1]-Cl[-2])*dt*np.sqrt(vel[0,0]**2+vel[1,0]**2),Ws))
+        Ws = np.hstack((1/2*(Cl[-1]-Cl[-2])*dt*np.sqrt(vel[0,0]**2+vel[1,0]**2),Ws))
         d = np.sum(Wpos**2,axis=0)
         Wpos = Wpos[:,d<(20**2)]
         Ws = Ws[d<(20**2)]
@@ -142,12 +205,26 @@ def solve(Vinf, k, N, dt, T, aoamax):
         #     Ws = Ws[:Nm]
         #     Wpos = Wpos[:,:Nm]
     Cl=Cl[1:]
+    a=a[1:]
     plt.plot(Cl)
     a = np.array(a)
     plt.plot(np.radians(a)*2*np.pi,"--")
     plt.show()
 
-    return Vpos, circ, Wpos, Ws
+    return Vpos, circ, Wpos, Ws, a, Cl
+
+def steady_aoa(N, aoa):
+    Wpos = np.zeros((2,1))
+    Ws = np.zeros(1)
+    Vpos, Cpos, Cnorm = gen_arf(aoa, N)
+    _, Cpos2, _ = gen_arf(0, N)
+    Cpos2 = Cpos2[0,:]
+    Vnorm = (Cpos2-0.25)*0
+    circ = solve_steady(Vpos, Cpos, Cnorm, Wpos, Ws, 1, Vnorm)
+    Cl = (-np.sum(circ)*2)
+    return Vpos, circ, Wpos, Ws, aoa, Cl
 
 plt.show()
-streamfunction(1000,*solve(1,1,50,0.05,20,5 ))
+f = lambda x: np.sin(x)*90
+f = lambda x: 0 if x < np.pi else 90
+velocityfield(1000,*solve(0.8,100,0.02,3, f))
