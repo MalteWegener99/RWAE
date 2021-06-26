@@ -119,8 +119,8 @@ def streamfunction(N, Vpos, Vs, Wpos, Ws,_,__):
 
 def velocityfield(N, Vpos, Vs, Wpos, Ws,_,__):
     
-    px = np.hstack((Vpos[0,:],Wpos[0,:]))
-    py = np.hstack((Vpos[1,:],Wpos[1,:]))
+    px = np.hstack((Vpos[0,:-1],Wpos[0,:]))
+    py = np.hstack((Vpos[1,:-1],Wpos[1,:]))
     xo = np.linspace(-1,max(2,np.max(px)),N)
     yo = np.linspace(-1,1,N)
     xx,yy = np.meshgrid(xo,yo)
@@ -174,7 +174,7 @@ def pressurefield(N, Vpos, Vs, Wpos, Ws,_,__):
     # plt.axis("equal")
     plt.show()
 
-def solve( k, N, dt, T, aoamax, include_acceleration=True):
+def solve( k, N, dt, T, aoamax, quasi_steady=False):
     Vinf = 1
     Wpos = np.zeros((2,1))
     Ws = np.zeros(1)
@@ -198,13 +198,12 @@ def solve( k, N, dt, T, aoamax, include_acceleration=True):
         Cpos2 = Cpos2[0,:]
         om = omega*np.radians(aoamax)*np.cos(dt*i*omega)
         o.append(om)
-        Vnorm = -(Cpos2-0.25)*om*(1 if include_acceleration else 0)
+        Vnorm = -(Cpos2-0.25)*om
         circ, diff = solve_steady(Vpos, Cpos, Cnorm, Wpos, Ws, Vinf, Vnorm, -Cl[-1]/2)
-        # diff *= dt
         Cl.append(-np.sum(circ)*2)
         Wnew = (Vpos[:,-1]).reshape((2,1))
         Wpos = np.hstack((Wnew,Wpos))
-        Ws = np.hstack((diff,Ws))#w
+        Ws = np.hstack((diff*(0 if quasi_steady else 1),Ws))#w
         vel = advect_wake(Vpos[:,:-1],circ,Wpos,Ws,Vinf)
         Wpos += vel*dt
 
@@ -221,7 +220,6 @@ def solve( k, N, dt, T, aoamax, include_acceleration=True):
     plt.plot(a,np.radians(a)*2*np.pi,"--")
     plt.grid(which="both")
     plt.show()
-    exit()
 
     return Vpos, circ, Wpos, Ws, a, Cl
 
