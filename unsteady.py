@@ -198,7 +198,7 @@ def solve( k, N, dt, T, aoamax, quasi_steady=False):
         Cpos2 = Cpos2[0,:]
         om = omega*np.radians(aoamax)*np.cos(dt*i*omega)
         o.append(om)
-        Vnorm = -(Cpos2-0.25)*om
+        Vnorm = -2*(Cpos2-0.25)*om
         circ, diff = solve_steady(Vpos, Cpos, Cnorm, Wpos, Ws, Vinf, Vnorm, -Cl[-1]/2)
         Cl.append(-np.sum(circ)*2)
         Wnew = (Vpos[:,-1]).reshape((2,1))
