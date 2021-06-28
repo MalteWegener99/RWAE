@@ -190,7 +190,7 @@ def solve( k, N, dt, T, aoamax, quasi_steady=False):
 
     for i in range(1,Nt+1):
         print(i/(Nt+1), Ws.shape,end="                                \r")
-        aoa = np.sin(dt*i*omega)*aoamax
+        aoa = 5#np.sin(dt*i*omega)*aoamax
         a.append(aoa)
         t.append(dt*i)
         Vpos, Cpos, Cnorm = gen_arf(aoa, N,dt)
@@ -198,30 +198,30 @@ def solve( k, N, dt, T, aoamax, quasi_steady=False):
         Cpos2 = Cpos2[0,:]
         om = omega*np.radians(aoamax)*np.cos(dt*i*omega)
         o.append(om)
-        Vnorm = -2*(Cpos2-0.25)*om
+        Vnorm = -2*(Cpos2-0.25)*om*0
         circ, diff = solve_steady(Vpos, Cpos, Cnorm, Wpos, Ws, Vinf, Vnorm, -Cl[-1]/2)
         Cl.append(-np.sum(circ)*2)
         Wnew = (Vpos[:,-1]).reshape((2,1))
         Wpos = np.hstack((Wnew,Wpos))
-        Ws = np.hstack((diff*(0 if quasi_steady else 1),Ws))#w
+        Ws = np.hstack((2*diff*(0 if quasi_steady else 1),Ws))#w
         vel = advect_wake(Vpos[:,:-1],circ,Wpos,Ws,Vinf)
         Wpos += vel*dt
 
         d = np.sum(Wpos**2,axis=0)
-        Wpos = Wpos[:,d<(20**2)]
-        Ws = Ws[d<(20**2)]
+        # Wpos = Wpos[:,d<(20**2)]
+        # Ws = Ws[d<(20**2)]
         # Nm = int(2*np.pi/omega/dt)
         # if Ws.shape[0] >= Nm:
         #     Ws = Ws[:Nm]
         #     Wpos = Wpos[:,:Nm]
     print(max(Cl))
-    plt.plot(a,Cl)
-    a = np.array(a)
-    plt.plot(a,np.radians(a)*2*np.pi,"--")
-    plt.grid(which="both")
-    plt.show()
+    # plt.plot(a,Cl)
+    # a = np.array(a)
+    # plt.plot(a,np.radians(a)*2*np.pi,"--")
+    # plt.grid(which="both")
+    # plt.show()
 
-    return Vpos, circ, Wpos, Ws, a, Cl
+    return Vpos, circ, Wpos, Ws, a, t, Cl
 
 def steady_aoa(N, aoa):
     Wpos = np.zeros((2,1))
@@ -235,4 +235,13 @@ def steady_aoa(N, aoa):
     return Vpos, circ, Wpos, Ws, aoa, Cl
 
 plt.show()
-velocityfield(1000,*solve(0.1,100,0.005,2, 10))
+# velocityfield(1000,*solve(0.1,100,0.005,2, 10))
+
+sol = solve(0.1,100,0.01,2, 10)
+s = np.array(sol[-2])
+s*=2
+c = np.array(sol[-1])
+anal = np.radians(5)*2*np.pi
+plt.plot(sol[-2],c/anal)
+plt.plot(s,1-0.165*np.exp(-0.045*s)-0.335*np.exp(-0.3*s),"--")
+plt.show()
