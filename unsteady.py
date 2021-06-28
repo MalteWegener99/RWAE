@@ -115,7 +115,7 @@ def streamfunction(N, Vpos, Vs, Wpos, Ws,_,__):
     # plt.axis("equal")
     plt.show()
 
-def velocityfield(N, Vpos, Vs, Wpos, Ws,_,__):
+def velocityfield(N, Vpos, Vs, Wpos, Ws,name):
     
     px = np.hstack((Vpos[0,:],Wpos[0,:]))
     py = np.hstack((Vpos[1,:],Wpos[1,:]))
@@ -138,13 +138,15 @@ def velocityfield(N, Vpos, Vs, Wpos, Ws,_,__):
     # um = np.clip(um,0,3)
     s=plt.contourf(xx,yy,um,50)
     cp = 1-um**2
-    plt.contour(xx,yy,cp,50,colors="k")
-    plt.scatter(Vpos[0,:],Vpos[1,:])
-    plt.colorbar(s)
-    # plt.axis("equal")
-    plt.show()
+    plt.plot(Vpos[0,:],Vpos[1,:],"k")
 
-def pressurefield(N, Vpos, Vs, Wpos, Ws,_,__):
+    plt.colorbar(s)
+    plt.xlabel("x/c")
+    plt.ylabel("y/c")
+    # plt.axis("equal")
+    plt.savefig(name)
+
+def pressurefield(N, Vpos, Vs, Wpos, Ws,name):
     
     px = np.hstack((Vpos[0,:],Wpos[0,:]))
     py = np.hstack((Vpos[1,:],Wpos[1,:]))
@@ -167,10 +169,12 @@ def pressurefield(N, Vpos, Vs, Wpos, Ws,_,__):
     cp = 1-um**2
     # um = np.clip(um,0,3)
     s=plt.contourf(xx,yy,cp,50)
-    plt.scatter(Vpos[0,:],Vpos[1,:])
+    plt.plot(Vpos[0,:],Vpos[1,:],"k")
     plt.colorbar(s)
+    plt.xlabel("x/c")
+    plt.ylabel("y/c")
     # plt.axis("equal")
-    plt.show()
+    plt.savefig(name)
 
 def solve( k, N, dt, T, f_aoa, include_acceleration=False):
     Vinf = 1
@@ -227,4 +231,14 @@ def steady_aoa(N, aoa):
 plt.show()
 f = lambda x: np.sin(x)*90
 f = lambda x: 0 if x < np.pi else 90
-velocityfield(1000,*solve(0.8,100,0.02,3, f))
+s = steady_aoa
+
+def make(a):
+    s = steady_aoa(100,a)
+    plt.clf()
+    pressurefield(500,*s[:4],"pressure_{}deg.png".format(a))
+    plt.clf()
+    velocityfield(500,*s[:4],"velocity_{}deg.png".format(a))
+
+for a in [-10,0,10]:
+    make(a)
