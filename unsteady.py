@@ -248,25 +248,25 @@ def make(k):
     plt.clf()
     velocityfield(500,*s[:4],"velocity_0deg_k={:1.2f}.png".format(k))
 
-for k in [0.02, 0.05, 0.1]:
-    make(k)
-# velocityfield(1000,*solve(0.1,100,0.005,2, 10))
 # for k in [0.02, 0.05, 0.1]:
-#     sol = solve(k,100,0.005,2, 10)
-#     s = np.array(sol[-2])
-#     s/=s[-1]/2
-#     plt.plot(s,sol[-1],label="Unsteady k={:1.2f}".format(k))
+#     make(k)
+# velocityfield(1000,*solve(0.1,100,0.005,2, 10))
+for k in [0.02, 0.05, 0.1]:
+    sol = solve(k,100,0.005,2, 10)
+    s = np.array(sol[-2])
+    s/=s[-1]/2
+    plt.plot(s,sol[-1],label="Unsteady k={:1.2f}".format(k))
 
 
-# a = np.linspace(0,2,500)
-# plt.plot(a,np.sin(a*2*np.pi)*2*np.pi*np.radians(10),"--",label="steady")
-# plt.ylabel("$C_L$")
-# plt.xlabel("Revolutions")
-# plt.legend()
+a = np.linspace(0,2,500)
+plt.plot(a,np.sin(2*np.pi*a)*2*np.pi*np.radians(10),"--",label="steady")
+plt.ylabel("$C_l$")
+plt.xlabel("Revolutions")
+plt.legend()
 
-# plt.grid(b=True, which='major', color='#666666', linestyle='-')
+plt.grid(b=True, which='major', color='#666666', linestyle='-')
 
-# # Show the minor grid lines with very faint and almost transparent grey lines
-# plt.minorticks_on()
-# plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
-# plt.show()
+# Show the minor grid lines with very faint and almost transparent grey lines
+plt.minorticks_on()
+plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
+plt.show()
