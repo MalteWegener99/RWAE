@@ -203,7 +203,7 @@ def solve( k, N, dt, T, aoamax, quasi_steady=False):
         Cl.append(-np.sum(circ)*2)
         Wnew = (Vpos[:,-1]).reshape((2,1))
         Wpos = np.hstack((Wnew,Wpos))
-        Ws = np.hstack((2*diff*(0 if quasi_steady else 1),Ws))#w
+        Ws = np.hstack((diff*(0 if quasi_steady else 1),Ws))#w
         vel = advect_wake(Vpos[:,:-1],circ,Wpos,Ws,Vinf)
         Wpos += vel*dt
 
@@ -242,6 +242,6 @@ s = np.array(sol[-2])
 s*=2
 c = np.array(sol[-1])
 anal = np.radians(5)*2*np.pi
-plt.plot(sol[-2],c/anal)
+plt.plot(s[1:]-s[1],c[1:]/anal)
 plt.plot(s,1-0.165*np.exp(-0.045*s)-0.335*np.exp(-0.3*s),"--")
 plt.show()
