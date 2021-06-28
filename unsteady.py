@@ -95,11 +95,11 @@ def advect_wake(Vpos, Vs, Wpos, Ws, Vinf):
 
     return vel
 
-def streamfunction(N, Vpos, Vs, Wpos, Ws,_,__):
+def streamfunction(N, Vpos, Vs, Wpos, Ws,name):
     
     px = np.hstack((Vpos[0,:],Wpos[0,:]))
     py = np.hstack((Vpos[1,:],Wpos[1,:]))
-    x = np.linspace(-1,max(2,np.max(px)),N)
+    x = np.linspace(-1,2,N)
     y = np.linspace(-1,1,N)
     xx,yy = np.meshgrid(x,y)
     s = np.hstack((Vs,Ws))
@@ -115,13 +115,13 @@ def streamfunction(N, Vpos, Vs, Wpos, Ws,_,__):
     s = plt.scatter(px,py,c=s)
     plt.colorbar(s)
     # plt.axis("equal")
-    plt.show()
+    plt.savefig(name)
 
-def velocityfield(N, Vpos, Vs, Wpos, Ws,_,__):
+def velocityfield(N, Vpos, Vs, Wpos, Ws,name):
     
     px = np.hstack((Vpos[0,:-1],Wpos[0,:]))
     py = np.hstack((Vpos[1,:-1],Wpos[1,:]))
-    xo = np.linspace(-1,max(2,np.max(px)),N)
+    xo = np.linspace(-1,2,N)
     yo = np.linspace(-1,1,N)
     xx,yy = np.meshgrid(xo,yo)
     s = np.hstack((Vs,Ws))
@@ -140,17 +140,20 @@ def velocityfield(N, Vpos, Vs, Wpos, Ws,_,__):
     # um = np.clip(um,0,3)
     s=plt.contourf(xx,yy,um,50)
     cp = 1-um**2
-    plt.contour(xx,yy,cp,50,colors="k")
-    plt.scatter(Vpos[0,:],Vpos[1,:])
+    # plt.contour(xx,yy,cp,50,colors="k")
+    plt.plot(Vpos[0,:],Vpos[1,:],"k")
     plt.colorbar(s)
+    plt.xlabel("x/c")
+    plt.ylabel("y/c")
     # plt.axis("equal")
-    plt.show()
+    plt.savefig(name)
 
-def pressurefield(N, Vpos, Vs, Wpos, Ws,_,__):
+
+def pressurefield(N, Vpos, Vs, Wpos, Ws,name):
     
-    px = np.hstack((Vpos[0,:],Wpos[0,:]))
-    py = np.hstack((Vpos[1,:],Wpos[1,:]))
-    xo = np.linspace(-1,max(2,np.max(px)),N)
+    px = np.hstack((Vpos[0,:-1],Wpos[0,:]))
+    py = np.hstack((Vpos[1,:-1],Wpos[1,:]))
+    xo = np.linspace(-1,2,N)
     yo = np.linspace(-1,1,N)
     xx,yy = np.meshgrid(xo,yo)
     s = np.hstack((Vs,Ws))
@@ -169,10 +172,12 @@ def pressurefield(N, Vpos, Vs, Wpos, Ws,_,__):
     cp = 1-um**2
     # um = np.clip(um,0,3)
     s=plt.contourf(xx,yy,cp,50)
-    plt.scatter(Vpos[0,:],Vpos[1,:])
+    plt.plot(Vpos[0,:],Vpos[1,:],"k")
     plt.colorbar(s)
     # plt.axis("equal")
-    plt.show()
+    plt.xlabel("x/c")
+    plt.ylabel("y/c")
+    plt.savefig(name)
 
 def solve( k, N, dt, T, aoamax, quasi_steady=False):
     Vinf = 1
@@ -235,28 +240,33 @@ def steady_aoa(N, aoa):
     return Vpos, circ, Wpos, Ws, aoa, Cl
 
 plt.show()
+
+def make(k):
+    s = solve(k,100,0.005,1, 10)
+    plt.clf()
+    pressurefield(500,*s[:4],"pressure_0deg_k={:1.2f}.png".format(k))
+    plt.clf()
+    velocityfield(500,*s[:4],"velocity_0deg_k={:1.2f}.png".format(k))
+
+for k in [0.02, 0.05, 0.1]:
+    make(k)
 # velocityfield(1000,*solve(0.1,100,0.005,2, 10))
+# for k in [0.02, 0.05, 0.1]:
+#     sol = solve(k,100,0.005,2, 10)
+#     s = np.array(sol[-2])
+#     s/=s[-1]/2
+#     plt.plot(s,sol[-1],label="Unsteady k={:1.2f}".format(k))
 
-sol = solve(0.1,100,0.005,2, 10)
-s = np.array(sol[-2])
-s*=2
-c = np.array(sol[-1])
-anal = np.radians(5)*2*np.pi
-plt.plot(s,1-0.165*np.exp(-0.045*s)-0.335*np.exp(-0.3*s),"--",label="Wagners function")
-plt.plot(s[1:]-s[1],c[1:]/anal,label="Code ds=0.05")
 
-sol = solve(0.1,100,0.1,2, 10)
-s = np.array(sol[-2])
-s*=2
-c = np.array(sol[-1])
-anal = np.radians(5)*2*np.pi
-plt.plot(s[1:]-s[1],c[1:]/anal,label="Code ds=0.1")
-plt.xlabel("s")
-plt.ylabel("$C_{L_u}/C_{L_s}$")
-plt.legend()
-plt.grid(b=True, which='major', color='#666666', linestyle='-')
+# a = np.linspace(0,2,500)
+# plt.plot(a,np.sin(a*2*np.pi)*2*np.pi*np.radians(10),"--",label="steady")
+# plt.ylabel("$C_L$")
+# plt.xlabel("Revolutions")
+# plt.legend()
 
-# Show the minor grid lines with very faint and almost transparent grey lines
-plt.minorticks_on()
-plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
-plt.show()
+# plt.grid(b=True, which='major', color='#666666', linestyle='-')
+
+# # Show the minor grid lines with very faint and almost transparent grey lines
+# plt.minorticks_on()
+# plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
+# plt.show()
