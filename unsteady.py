@@ -190,7 +190,7 @@ def solve( k, N, dt, T, aoamax, quasi_steady=False):
 
     for i in range(1,Nt+1):
         print(i/(Nt+1), Ws.shape,end="                                \r")
-        aoa = 5#np.sin(dt*i*omega)*aoamax
+        aoa = np.sin(dt*i*omega)*aoamax
         a.append(aoa)
         t.append(dt*i)
         Vpos, Cpos, Cnorm = gen_arf(aoa, N,dt)
@@ -198,7 +198,7 @@ def solve( k, N, dt, T, aoamax, quasi_steady=False):
         Cpos2 = Cpos2[0,:]
         om = omega*np.radians(aoamax)*np.cos(dt*i*omega)
         o.append(om)
-        Vnorm = -2*(Cpos2-0.25)*om*0
+        Vnorm = -2*(Cpos2-0.25)*om
         circ, diff = solve_steady(Vpos, Cpos, Cnorm, Wpos, Ws, Vinf, Vnorm, -Cl[-1]/2)
         Cl.append(-np.sum(circ)*2)
         Wnew = (Vpos[:,-1]).reshape((2,1))
@@ -237,11 +237,26 @@ def steady_aoa(N, aoa):
 plt.show()
 # velocityfield(1000,*solve(0.1,100,0.005,2, 10))
 
-sol = solve(0.1,100,0.01,2, 10)
+sol = solve(0.1,100,0.005,2, 10)
 s = np.array(sol[-2])
 s*=2
 c = np.array(sol[-1])
 anal = np.radians(5)*2*np.pi
-plt.plot(s[1:]-s[1],c[1:]/anal)
-plt.plot(s,1-0.165*np.exp(-0.045*s)-0.335*np.exp(-0.3*s),"--")
+plt.plot(s,1-0.165*np.exp(-0.045*s)-0.335*np.exp(-0.3*s),"--",label="Wagners function")
+plt.plot(s[1:]-s[1],c[1:]/anal,label="Code ds=0.05")
+
+sol = solve(0.1,100,0.1,2, 10)
+s = np.array(sol[-2])
+s*=2
+c = np.array(sol[-1])
+anal = np.radians(5)*2*np.pi
+plt.plot(s[1:]-s[1],c[1:]/anal,label="Code ds=0.1")
+plt.xlabel("s")
+plt.ylabel("$C_{L_u}/C_{L_s}$")
+plt.legend()
+plt.grid(b=True, which='major', color='#666666', linestyle='-')
+
+# Show the minor grid lines with very faint and almost transparent grey lines
+plt.minorticks_on()
+plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.2)
 plt.show()
